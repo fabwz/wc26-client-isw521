@@ -85,7 +85,19 @@ Requiere `Authorization: Bearer <token>`. Devuelve un array de 104 partidos.
 
 **Campos a usar en la app:**
 - `home_team_id` / `away_team_id` → cruce con `teams`. **Ojo:** en partidos de fase de eliminación aún no definidos, vienen como `"0"` — en ese caso usar `home_team_label`/`away_team_label` como respaldo (ej. "Runner-up Group A"). Para este subproyecto (fase de grupos, equipo ya definido) esto es poco frecuente, pero vale la pena un fallback defensivo.
-- `group` → viene nativo, valores "A".."L" en fase de grupos (en fases posteriores puede ser "R32", "R16", etc.). No requiere `/get/groups`.
+- `group` → viene nativo, no requiere `/get/groups`. Valores exactos confirmados:
+
+  | Valor | Etapa | Etiqueta a mostrar |
+  |---|---|---|
+  | `A`...`L` | Fase de grupos | "Grupo A" (usar el valor tal cual) |
+  | `R32` | Ronda de 32 | "Ronda de 32" |
+  | `R16` | Ronda de 16 | "Ronda de 16" |
+  | `QF` | Cuartos de final | "Cuartos de Final" |
+  | `SF` | Semifinal | "Semifinal" |
+  | `3RD` | Partido por el 3er puesto | "Tercer Puesto" |
+  | `FINAL` | Final | "Final" |
+
+  **No anteponer "Grupo" a un código de ronda eliminatoria** — "Grupo R32" es incorrecto, debe mapearse a "Ronda de 32". Ver también el campo `type` (minúsculas: `r32`, `r16`, `qf`, `sf`, `third`, `final`), que trae el mismo dato en otro formato — usar el que sea más cómodo para el mapeo, ambos son equivalentes.
 - `local_date` → formato string `"MM/DD/YYYY HH:mm"`, no ISO — parsear con cuidado al ordenar/formatear.
 - `stadium_id` → cruce con `stadiums`.
 - `finished` → viene como **string** `"TRUE"`/`"FALSE"`, no boolean. Cuidado al comparar (`finished === "TRUE"`, no `finished === true`).

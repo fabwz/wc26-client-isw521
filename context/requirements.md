@@ -56,7 +56,7 @@ El `token` se obtiene autenticándose vía `POST /auth/authenticate` (email + pa
   - **Aforo:** capacidad del recinto.
 - Esto es un requisito literal del enunciado ("mostrar ciudad, país y aforo del recinto") — un código abreviado que haya que interpretar no satisface el requisito de forma defendible.
 
-> **Nota — campo `group`:** cada partido de `/get/games` ya incluye un campo `group` (ej. "A", ..., "L" en fase de grupos) de forma nativa, **sin necesidad de consumir `/get/groups`**. Mostrar el grupo de cada partido en las tarjetas (ej. "Grupo A") está dentro del alcance del subproyecto.
+> **Nota — campo `group`:** cada partido de `/get/games` ya incluye un campo `group` de forma nativa, **sin necesidad de consumir `/get/groups`**. En fase de grupos trae una letra (`A`...`L`); en fase eliminatoria trae el código de la ronda, no una letra de grupo: `R32` (ronda de 32), `R16` (ronda de 16), `QF` (cuartos de final), `SF` (semifinal), `3RD` (partido por el tercer puesto), `FINAL` (final). El chip de la tarjeta debe mostrar la etiqueta correcta según el valor — nunca anteponer la palabra "Grupo" a un código de ronda eliminatoria (ej. "Grupo R32" es incorrecto; debe decir "Ronda de 32").
 
 ### RF-04 — Renderizado tipo itinerario
 - El resultado se debe renderizar como un **itinerario de tarjetas** (una tarjeta por partido).
@@ -159,7 +159,7 @@ Navbar **actual** (versión a construir ahora), dentro del alcance del subproyec
 
 **"Partidos" queda pausado / a futuro** (ver RF-05b): no se construye por ahora. Prioridad total en dejar sólido y bien defendible todo lo obligatorio antes de retomarlo.
 
-No se incluye una sección "Standings"/tabla de posiciones: requeriría `GET /get/groups`, endpoint fuera del alcance de este subproyecto (pertenece a "El Muro", 2.3 del enunciado). El campo `group` de cada partido individual (ej. "Grupo A") sí está disponible nativamente en `/get/games` y puede mostrarse en las tarjetas sin problema (ver nota en RF-03).
+No se incluye una sección "Standings"/tabla de posiciones: requeriría `GET /get/groups`, endpoint fuera del alcance de este subproyecto (pertenece a "El Muro", 2.3 del enunciado). El campo `group` de cada partido individual sí está disponible nativamente en `/get/games` y puede mostrarse en las tarjetas sin problema (ver nota en RF-03) — recordando que en fase eliminatoria contiene un código de ronda (`R32`, `QF`, etc.), no una letra de grupo.
 
 ---
 
