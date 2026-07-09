@@ -15,6 +15,7 @@ import {
   simulateRateLimit,
   simulateRateLimitRecovery,
   simulateServerError,
+  simulateSessionExpired,
 } from './api/worldCupApi.js';
 import { buildItinerary } from './domain/itineraryService.js';
 
@@ -37,8 +38,14 @@ const manejarSesionExpirada = () => {
 
 // Botón/atajo visible solo en `npm run dev` para forzar el modal de sesión
 // expirada (RF-08) sin depender del servidor — ver devSessionSimulator.js.
-// Se monta una sola vez, con la misma función que ya usa la app ante un 401 real.
-mountDevSessionSimulator(manejarSesionExpirada);
+// Primero hace un fetch() real a httpstat.us/401 (simulateSessionExpired,
+// worldCupApi.js) y deja que la clasificación real construya el ApiError(401)
+// — visible en Network — y solo entonces dispara manejarSesionExpirada, la
+// misma función que usa la app ante un 401 real.
+mountDevSessionSimulator(async () => {
+  await simulateSessionExpired();
+  manejarSesionExpirada();
+});
 
 // Botón/atajo visible solo en `npm run dev` para forzar un 429 y ver el
 // countdown de backoff (RF-09) sin depender de ganarle a la caché HTTP de

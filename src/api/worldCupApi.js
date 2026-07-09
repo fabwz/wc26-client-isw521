@@ -1,4 +1,4 @@
-import { authFetch, ApiError } from './httpClient.js';
+import { authFetch, ApiError, fetchSimulatedError, fetchSimulatedSuccess } from './httpClient.js';
 import { getToken, setCachedData, getCachedData } from '../state/appState.js';
 import { fetchWithBackoff } from '../utils/backoff.js';
 import {
@@ -125,16 +125,25 @@ export const getStadiums = async () => fetchDatasetResiliente('stadiums', '/get/
 // simulateRateLimitRecovery (429) y simulateServerError (500) — pasa por el
 // mismo conBackoffVisible/fetchWithBackoff/resilienceBanners que un error
 // real (fetchDatasetResiliente arriba), solo que `peticionFalsa` reemplaza a
-// `authFetch` como la función que "falla" con el `status` indicado. El
+// `authFetch` como la función que "falla". La diferencia clave con la versión
+// anterior: `peticionFalsa` YA NO lanza `new ApiError(status, mensaje)`
+// sintético en memoria — hace un fetch() REAL a httpstat.us/<status>
+// (fetchSimulatedError, httpClient.js) y deja que el mismo
+// `clasificarRespuesta` de producción construya el ApiError a partir de esa
+// respuesta HTTP real. Eso significa que la pestaña Network SÍ muestra una
+// petición real, con status/headers/body reales, en cada intento — requisito
+// explícito de la rúbica (RNF-04) que un `throw` en memoria no cumplía. El
 // countdown/barra y los reintentos con backoff creciente (1s→2s→4s→8s) son
-// 100% el código de producción — lo único simulado es el origen del ApiError.
+// 100% el código de producción — lo único "de dev" es que el servidor detrás
+// del fetch es httpstat.us en vez de worldcup26.ir.
 //
 // `failCount` controla cuántos intentos fallan antes de resolver:
 // - Infinity (default): nunca se recupera, agota los 4 reintentos y cae a
 //   caché — es el caso "el servidor sigue caído".
 // - un número finito (ej. 2): falla esa cantidad de veces y el siguiente
-//   intento "tiene éxito" — es el caso "el servidor se recupera a mitad del
-//   backoff", con los banners desapareciendo limpiamente sin pasar por caché.
+//   intento hace un fetch real a httpstat.us/200 (fetchSimulatedSuccess) —
+//   es el caso "el servidor se recupera a mitad del backoff", con los
+//   banners desapareciendo limpiamente sin pasar por caché.
 //
 // `datasetCacheKey` ('teams'/'games'/'stadiums') es SOLO de dónde se lee el
 // dato cacheado real para el badge de caché (así la demo de "cae a caché"
@@ -147,7 +156,7 @@ export const getStadiums = async () => fetchDatasetResiliente('stadiums', '/get/
 // backoffs independientes compitiendo por el mismo `source` (bug reportado:
 // clic en "Simular 500" mostraba también 429 porque la API real estaba
 // genuinamente rate-limited sobre 'teams' en ese instante).
-const simulateApiError = async (status, mensaje, datasetCacheKey, { failCount = Infinity } = {}) => {
+const simulateApiError = async (status, datasetCacheKey, { failCount = Infinity } = {}) => {
   if (!import.meta.env.DEV) return;
 
   const bannerSource = `dev-sim:${status}:${datasetCacheKey}`;
@@ -156,12 +165,16 @@ const simulateApiError = async (status, mensaje, datasetCacheKey, { failCount = 
   const peticionFalsa = async () => {
     intentosHechos += 1;
     if (intentosHechos <= failCount) {
-      throw new ApiError(status, mensaje);
+      // Fetch real a httpstat.us/<status> — aparece en Network con status,
+      // headers y body reales. clasificarRespuesta (httpClient.js) construye
+      // el ApiError real a partir de esa Response, no uno sintético.
+      return await fetchSimulatedError(status);
     }
-    // Recuperación simulada: no hay un dataset nuevo real que aplicar (esto
-    // solo demuestra el comportamiento visual del backoff), basta con
-    // resolver sin lanzar para que fetchWithBackoff considere el intento exitoso.
-    return { simulated: true };
+    // Recuperación simulada: fetch real a httpstat.us/200 (también visible
+    // en Network) — no hay dataset nuevo real que aplicar, la app sigue
+    // mostrando lo que ya tenía cargado; esto solo demuestra que el backoff
+    // puede terminar en éxito.
+    return await fetchSimulatedSuccess();
   };
 
   try {
@@ -199,16 +212,15 @@ const simulateApiError = async (status, mensaje, datasetCacheKey, { failCount = 
 //
 // Para quitarlo antes de la entrega final: borra esta función, el import de
 // mountDevRateLimitSimulator y la línea que lo monta en main.js.
-export const simulateRateLimit = (cacheKey = 'teams') =>
-  simulateApiError(429, 'Límite de peticiones excedido (simulado, dev)', cacheKey);
+export const simulateRateLimit = (cacheKey = 'teams') => simulateApiError(429, cacheKey);
 
 // simulateRateLimitRecovery: SOLO DESARROLLO. Misma mecánica que
-// simulateRateLimit, pero falla solo los primeros 2 intentos y el 3ro
-// resuelve con éxito — para demostrar el caso donde el backoff SÍ se
-// recupera (countdown 1s → 2s, banner desaparece, la app sigue con datos en
-// vivo) en vez de terminar siempre cayendo a caché.
-export const simulateRateLimitRecovery = (cacheKey = 'teams') =>
-  simulateApiError(429, 'Límite de peticiones excedido (simulado, dev — se recupera)', cacheKey, { failCount: 2 });
+// simulateRateLimit, pero falla solo los primeros 2 intentos (fetch real a
+// httpstat.us/429) y el 3ro hace un fetch real a httpstat.us/200 — para
+// demostrar el caso donde el backoff SÍ se recupera (countdown 1s → 2s,
+// banner desaparece, la app sigue con datos en vivo) en vez de terminar
+// siempre cayendo a caché.
+export const simulateRateLimitRecovery = (cacheKey = 'teams') => simulateApiError(429, cacheKey, { failCount: 2 });
 
 // simulateServerError: SOLO DESARROLLO. No hay forma confiable de forzar un
 // 500 real y repetible contra la API de prueba para la demo (no expone un
@@ -218,5 +230,27 @@ export const simulateRateLimitRecovery = (cacheKey = 'teams') =>
 //
 // Para quitarlo antes de la entrega final: borra esta función, el import de
 // mountDevServerErrorSimulator y la línea que lo monta en main.js.
-export const simulateServerError = (cacheKey = 'teams') =>
-  simulateApiError(500, 'Error del servidor (simulado, dev)', cacheKey);
+export const simulateServerError = (cacheKey = 'teams') => simulateApiError(500, cacheKey);
+
+// simulateSessionExpired: SOLO DESARROLLO. Igual que los anteriores, hace un
+// fetch() REAL a httpstat.us/401 (fetchSimulatedError) y deja que el mismo
+// clasificarRespuesta de producción construya el ApiError(401) real a partir
+// de esa respuesta — visible en Network con status/headers/body reales, en
+// vez de que main.js llame a manejarSesionExpirada() directamente sin
+// petición de por medio. Devuelve una vez que la clasificación ya ocurrió;
+// quien llama (main.js) dispara manejarSesionExpirada() después, igual que
+// lo haría ante un 401 real capturado en cualquier fetchDatasetResiliente.
+//
+// Para quitarlo antes de la entrega final: borra esta función, el import de
+// mountDevSessionSimulator y la línea que lo monta en main.js.
+export const simulateSessionExpired = async () => {
+  if (!import.meta.env.DEV) return;
+  try {
+    await fetchSimulatedError(401);
+  } catch (error) {
+    console.debug('[resiliencia][DEV] simulación de 401 clasificada desde respuesta real', {
+      nombre: error.name,
+      status: error.status,
+    });
+  }
+};
