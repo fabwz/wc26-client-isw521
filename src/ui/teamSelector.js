@@ -1,6 +1,13 @@
 // teamSelector: poblar y manejar el <select> de equipos (RF-01). Solo DOM,
 // recibe los equipos ya obtenidos por /api — nunca hace fetch directamente.
 
+// Ícono Lucide `chevron-down` como SVG inline (DESIGN.md sección 3.1) — el
+// <select> usa appearance-none para poder controlar su posición (separado
+// del borde, no pegado como la flecha nativa del navegador).
+const ICON_CHEVRON_DOWN = `
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
+`;
+
 // renderTeamSelector: dibuja el selector con los 48 equipos (nombre completo,
 // nunca fifa_code) y notifica onTeamSelected(teamId) al elegir uno.
 export const renderTeamSelector = (container, teams, { onTeamSelected } = {}) => {
@@ -9,15 +16,18 @@ export const renderTeamSelector = (container, teams, { onTeamSelected } = {}) =>
   container.innerHTML = `
     <label class="flex flex-col gap-1.5">
       <span class="body-sm text-text-secondary">Selecciona un equipo</span>
-      <select
-        name="team"
-        class="glass rounded-full px-5 py-3 text-white bg-transparent outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2"
-      >
-        <option value="" disabled selected>Elige un equipo</option>
-        ${equiposOrdenados
-          .map((equipo) => `<option value="${equipo.id}">${equipo.name_en}</option>`)
-          .join('')}
-      </select>
+      <div class="relative">
+        <select
+          name="team"
+          class="glass appearance-none w-full rounded-full pl-5 pr-10 py-3 text-white bg-[#1D1032] outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2"
+        >
+          <option value="" disabled selected class="bg-[#1D1032] text-white">Elige un equipo</option>
+          ${equiposOrdenados
+            .map((equipo) => `<option value="${equipo.id}" class="bg-[#1D1032] text-white">${equipo.name_en}</option>`)
+            .join('')}
+        </select>
+        <span class="pointer-events-none absolute right-4 top-1/2 -translate-y-1/2 text-text-secondary">${ICON_CHEVRON_DOWN}</span>
+      </div>
     </label>
   `;
 

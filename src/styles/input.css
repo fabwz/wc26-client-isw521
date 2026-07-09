@@ -6,6 +6,26 @@
   .glass {
     @apply bg-white/[0.06] backdrop-blur-glass border border-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_32px_rgba(0,0,0,0.35)];
   }
+
+  /* Escala tipográfica (DESIGN.md sección 2) — tokens usados en toda la UI. */
+  .display-xl {
+    @apply font-display font-extrabold text-[44px] leading-[48px];
+  }
+  .display-md {
+    @apply font-display font-bold text-[26px] leading-[30px];
+  }
+  .body-md {
+    @apply font-body text-base leading-6;
+  }
+  .body-sm {
+    @apply font-body font-medium text-sm leading-5;
+  }
+  .mono-md {
+    @apply font-mono text-[15px] leading-5;
+  }
+  .mono-lg {
+    @apply font-mono text-[28px] leading-8;
+  }
 }
 
 .ambient-glow {
@@ -35,5 +55,27 @@
     animation: none;
     --glow-x: 50%;
     --glow-y: 20%;
+  }
+}
+
+/* Aparición de tarjetas (DESIGN.md sección 6): opacity 0→1 + translateY(8px→0). */
+@keyframes cardEnter {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.card-enter {
+  animation: cardEnter 200ms ease-out both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card-enter {
+    animation: none;
   }
 }
