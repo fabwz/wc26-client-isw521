@@ -97,6 +97,28 @@
   }
 }
 
+/* Hover de la tarjeta "boleto de cristal" (DESIGN.md sección 3): leve
+   elevación + intensificación del borde de resplandor izquierdo. Aplica
+   también al estado degradado (RF-11), que solo reemplaza las filas de
+   estadio/ciudad, no la tarjeta ni su borde. */
+.ticket-card {
+  transition: transform 180ms ease-out;
+}
+
+.ticket-card:hover {
+  transform: translateY(-5px);
+}
+
+.ticket-card .ticket-card-accent {
+  transition: width 180ms ease-out, opacity 180ms ease-out;
+  opacity: 0.85;
+}
+
+.ticket-card:hover .ticket-card-accent {
+  width: 4px;
+  opacity: 1;
+}
+
 /* Banners de resiliencia (RF-09/RF-10) y modal de sesión expirada (RF-08):
    misma aparición suave que el resto del sistema (DESIGN.md sección 6). */
 @keyframes bannerEnter {

@@ -39,6 +39,29 @@ export const renderItineraryCards = (container, teamName, teamFlag, { matches, c
       ${matches.map((match, indice) => renderCardHtml(match, indice)).join('')}
     </div>
   `;
+  releaseCardEnterClass(container);
+};
+
+// releaseCardEnterClass: quita `card-enter` de cada tarjeta cuando termina su
+// animación de aparición. Es necesario porque `animation-fill-mode: both`
+// deja el `transform: translateY(0)` del último frame "vivo" por encima de
+// cualquier transform normal del autor (incluido el hover de .ticket-card),
+// sin importar especificidad — por eso el hover se veía tachado en DevTools.
+// Con `prefers-reduced-motion: reduce` quitamos la clase de inmediato (no
+// hace falta esperar nada, la animación no se percibe) y además dejamos un
+// setTimeout corto como respaldo por si `animationend` no llegara a disparar
+// con duración ~0 en algún navegador.
+const releaseCardEnterClass = (container) => {
+  const prefersReducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  container.querySelectorAll('.card-enter').forEach((tarjeta) => {
+    if (prefersReducedMotion) {
+      tarjeta.classList.remove('card-enter');
+      return;
+    }
+    const quitarClase = () => tarjeta.classList.remove('card-enter');
+    tarjeta.addEventListener('animationend', quitarClase, { once: true });
+    setTimeout(quitarClase, 400);
+  });
 };
 
 // renderCardHtml: markup de una sola tarjeta de partido. `indice` alimenta el
@@ -47,11 +70,11 @@ export const renderItineraryCards = (container, teamName, teamFlag, { matches, c
 // nunca como border-image alrededor de toda la tarjeta.
 const renderCardHtml = (match, indice) => `
   <article
-    class="card-enter relative overflow-hidden glass rounded-[20px] pl-6 pr-5 py-5 flex flex-col gap-3"
+    class="card-enter ticket-card relative overflow-hidden glass rounded-[20px] pl-6 pr-5 py-5 flex flex-col gap-3"
     style="animation-delay: ${indice * 40}ms"
     data-match-id="${match.id}"
   >
-    <span class="absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
+    <span class="ticket-card-accent absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
 
     <header class="flex items-center justify-between gap-2">
       <h3 class="font-display font-bold text-white">${match.homeTeamName} vs ${match.awayTeamName}</h3>

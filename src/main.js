@@ -5,10 +5,7 @@ import { renderNavbar } from './ui/navbar.js';
 import { renderTeamSelector } from './ui/teamSelector.js';
 import { renderItineraryCards, markStadiumsUnavailableForCards } from './ui/itineraryCards.js';
 import { showSessionExpiredModal } from './ui/sessionExpiredModal.js';
-import { mountDevSessionSimulator } from './ui/devSessionSimulator.js';
-import { mountDevRateLimitSimulator } from './ui/devRateLimitSimulator.js';
-import { mountDevServerErrorSimulator } from './ui/devServerErrorSimulator.js';
-import { mountDevStadiumsFailureSimulator } from './ui/devStadiumsFailureSimulator.js';
+import { mountDevToolsPanel } from './ui/devToolsPanel.js';
 import {
   getTeams,
   getGames,
@@ -38,51 +35,46 @@ const manejarSesionExpirada = () => {
   showSessionExpiredModal({ onReauthenticated: iniciarApp });
 };
 
-// Botón/atajo visible solo en `npm run dev` para forzar el modal de sesión
-// expirada (RF-08) sin depender del servidor — ver devSessionSimulator.js.
-// Primero hace un fetch() real a httpstat.us/401 (simulateSessionExpired,
-// worldCupApi.js) y deja que la clasificación real construya el ApiError(401)
-// — visible en Network — y solo entonces dispara manejarSesionExpirada, la
-// misma función que usa la app ante un 401 real.
-mountDevSessionSimulator(async () => {
-  await simulateSessionExpired();
-  manejarSesionExpirada();
-});
-
-// Botón/atajo visible solo en `npm run dev` para forzar un 429 y ver el
-// countdown de backoff (RF-09) sin depender de ganarle a la caché HTTP de
-// 30s del servidor real — ver devRateLimitSimulator.js / simulateRateLimit.
-mountDevRateLimitSimulator(
-  () => simulateRateLimit('teams'),
-  () => simulateRateLimitRecovery('teams')
-);
-
-// Botón/atajo visible solo en `npm run dev` para forzar un 500 y ver el
-// banner "Error de servidor · reintentando conexión..." con barra de
-// progreso (RF-09) — ver devServerErrorSimulator.js / simulateServerError.
-mountDevServerErrorSimulator(() => simulateServerError('teams'));
-
 // currentMatchIds: ids de las tarjetas de partidos actualmente en pantalla
 // (poblado por onTeamSelected). El simulador de RF-11 lo necesita para saber
 // a qué tarjetas aplicarles la actualización parcial — no dispara ninguna
 // petición nueva a /get/games, solo lee este arreglo en memoria.
 let currentMatchIds = [];
 
-// Botón/atajo visible solo en `npm run dev` para forzar el reto de
-// resiliencia específico de este subproyecto (RF-11): falla SOLO
-// `/get/stadiums` después de que el itinerario ya está renderizado con datos
-// reales de /get/games y /get/teams. Si no hay itinerario en pantalla, no
-// hace nada (no tiene sentido demostrarlo sin tarjetas ya renderizadas).
-mountDevStadiumsFailureSimulator(async () => {
-  if (currentMatchIds.length === 0) return;
-  try {
-    await simulateStadiumsFailureAfterRender();
-  } catch (error) {
-    // Fallo aislado y esperado (RF-11): actualización PARCIAL por tarjeta,
-    // nunca un re-render completo de itinerary-slot — las tarjetas ya
-    // renderizadas permanecen intactas salvo el bloque de estadio.
-    markStadiumsUnavailableForCards(app.querySelector('#itinerary-slot'), currentMatchIds);
-  }
+// Panel único (🐛, esquina inferior derecha) visible solo en `npm run dev`
+// que agrupa los 5 simuladores — antes eran 5 botones sueltos compitiendo
+// por espacio con las tarjetas de itinerario. Cada trigger es el mismo que
+// ya existía; devToolsPanel.js solo decide dónde se dibuja el botón, no
+// cambia el comportamiento ni los atajos de teclado (ver devToolsPanel.js).
+mountDevToolsPanel({
+  // RF-08: fetch() real a httpstat.us/401 (simulateSessionExpired,
+  // worldCupApi.js) para que la clasificación real construya el
+  // ApiError(401) — visible en Network — y solo entonces manejarSesionExpirada.
+  trigger401: async () => {
+    await simulateSessionExpired();
+    manejarSesionExpirada();
+  },
+  // RF-09: countdown de backoff sin depender de ganarle a la caché HTTP de
+  // 30s del servidor real — ver simulateRateLimit/simulateRateLimitRecovery.
+  trigger429Agota: () => simulateRateLimit('teams'),
+  trigger429Recupera: () => simulateRateLimitRecovery('teams'),
+  // RF-09: banner "Error de servidor · reintentando conexión..." con barra
+  // de progreso — ver simulateServerError.
+  trigger500: () => simulateServerError('teams'),
+  // RF-11: falla SOLO /get/stadiums después de que el itinerario ya está
+  // renderizado con datos reales de /get/games y /get/teams. Si no hay
+  // itinerario en pantalla, no hace nada.
+  triggerFalloEstadios: async () => {
+    if (currentMatchIds.length === 0) return;
+    try {
+      await simulateStadiumsFailureAfterRender();
+    } catch (error) {
+      // Fallo aislado y esperado (RF-11): actualización PARCIAL por tarjeta,
+      // nunca un re-render completo de itinerary-slot — las tarjetas ya
+      // renderizadas permanecen intactas salvo el bloque de estadio.
+      markStadiumsUnavailableForCards(app.querySelector('#itinerary-slot'), currentMatchIds);
+    }
+  },
 });
 
 // iniciarApp: monta la navbar y la vista Itinerarios (selector de equipo +
