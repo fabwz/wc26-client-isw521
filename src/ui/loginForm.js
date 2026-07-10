@@ -37,7 +37,6 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
     <form class="glass rounded-3xl p-8 w-full max-w-[380px] flex flex-col gap-5 ${clasesBorde}" novalidate>
       ${alertMessage ? `<p class="body-sm text-alert font-semibold text-center -mb-1">${alertMessage}</p>` : ''}
       <div>
-        <p class="body-sm text-text-secondary mb-1">Ruta del Campeón</p>
         <h1 class="font-display text-[26px] leading-[30px] font-bold text-white">Iniciar sesión</h1>
         ${subtitle ? `<p class="body-sm text-text-secondary mt-2">${subtitle}</p>` : ''}
       </div>
@@ -112,11 +111,12 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
 };
 
 // renderLoginScreen: pantalla completa de entrada (RF-06) — sin navbar, logo
-// WC26 placeholder centrado arriba, tarjeta de login centrada vertical y
-// horizontalmente. Es lo que main.js monta cuando no hay token válido.
+// de La Ruta del Campeón centrado arriba, tarjeta de login centrada vertical
+// y horizontalmente. Es lo que main.js monta cuando no hay token válido.
 export const renderLoginScreen = (container, { onSuccess } = {}) => {
   container.innerHTML = `
     <main class="min-h-screen flex flex-col items-center justify-center px-4">
+      <img src="/logo.png" alt="La Ruta del Campeón" class="h-56 w-auto -mt-6 -mb-16" />
       <div id="login-form-slot" class="flex justify-center w-full"></div>
     </main>
   `;
