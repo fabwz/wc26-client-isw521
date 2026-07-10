@@ -20,16 +20,9 @@ const mensajeError = (error) => {
   return 'Ocurrió un error inesperado al iniciar sesión.';
 };
 
-// renderLoginForm: dibuja SOLO la tarjeta glass (título + inputs + botón).
-// Es el componente que se reutiliza tal cual dentro del modal de sesión
-// expirada (RF-08) — ese modal solo cambia el contenedor que lo envuelve.
-// `alertMessage` (usado por sessionExpiredModal.js) agrega el aviso rojo
-// COMO PARTE de esta misma tarjeta (borde superior de acento + texto arriba
-// del título) en vez de que el llamador apile una tarjeta glass aparte encima
-// — dos superficies glass independientes se veían como un corte/costura entre
-// ambas (doble blur/borde/sombra). Con un solo `<form class="glass ...">` no
-// hay seam posible: es una única tarjeta de principio a fin.
-// onSuccess(user) se invoca después de guardar token/user en appState.
+// Se reutiliza tal cual dentro del modal de sesión expirada (RF-08).
+// `alertMessage` va DENTRO de esta misma tarjeta glass (no una tarjeta aparte
+// encima) para evitar el doble blur/borde de dos superficies glass apiladas.
 export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage } = {}) => {
   const clasesBorde = alertMessage ? 'border-t-2 border-t-alert' : '';
 
@@ -110,9 +103,6 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
   });
 };
 
-// renderLoginScreen: pantalla completa de entrada (RF-06) — sin navbar, logo
-// de La Ruta del Campeón centrado arriba, tarjeta de login centrada vertical
-// y horizontalmente. Es lo que main.js monta cuando no hay token válido.
 export const renderLoginScreen = (container, { onSuccess } = {}) => {
   container.innerHTML = `
     <main class="min-h-screen flex flex-col items-center justify-center px-4">

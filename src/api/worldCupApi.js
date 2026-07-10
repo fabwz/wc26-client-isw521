@@ -10,27 +10,16 @@ import {
   hideCacheBanner,
 } from '../ui/resilienceBanners.js';
 
-// Los 3 endpoints /get/* no devuelven el array directo en la raíz de la
-// respuesta: lo envuelven en un objeto bajo una key con el nombre del
-// recurso (comprobado contra la API real, ej. { teams: [...] }). Los
-// ejemplos de context/api-reference.md muestran solo la forma de un item
-// individual, no la envoltura del array completo.
+// Los 3 endpoints /get/* envuelven el array en un objeto bajo una key con
+// el nombre del recurso (ej. { teams: [...] }), no lo devuelven en la raíz.
 
-// onRetry: puente entre fetchWithBackoff (que no sabe nada de DOM) y los
-// banners de resiliencia (RF-09) — 429 dispara el countdown, 5xx la barra de
-// progreso. `source` (el cacheKey del dataset) viaja en cada show/hide para
-// que 3 peticiones concurrentes (teams/games/stadiums) no se pisen el chip
-// entre sí (ver comentario en resilienceBanners.js sobre la condición de
-// carrera que esto corrige).
+// Puente entre fetchWithBackoff (sin DOM) y los banners de resiliencia
+// (RF-09): 429 dispara countdown, 5xx la barra de progreso. `source` viaja
+// en cada show/hide para que teams/games/stadiums no se pisen el chip entre
+// sí (ver resilienceBanners.js).
 const conBackoffVisible = (source, peticion) => {
-  // BUG corregido: `onTick` (backoff.js) se dispara una vez por segundo
-  // durante CUALQUIER espera, sin importar si el ciclo actual es 429 o 500 —
-  // no recibe el status. Antes, `onTick` llamaba a showRateLimitBanner sin
-  // condición alguna, así que un ciclo de 500 también disparaba el chip 429
-  // en el primer tick (mismo `source`, mismo delayMs/segundosRestantes —
-  // confirmado en Console). `ultimoStatus` guarda qué status originó el
-  // ciclo de espera en curso para que `onTick` solo actualice el chip que
-  // corresponde.
+  // `onTick` se dispara cada segundo sin importar si el ciclo es 429 o 500;
+  // `ultimoStatus` evita que un ciclo de 500 dispare el countdown de 429.
   let ultimoStatus = null;
 
   return fetchWithBackoff(peticion, {
@@ -43,9 +32,7 @@ const conBackoffVisible = (source, peticion) => {
       }
     },
     onTick: (segundosRestantes) => {
-      // El chip 500 no muestra segundos (barra de progreso animada por CSS,
-      // no countdown) — solo actualizamos el countdown de 429 tick a tick, y
-      // solo si el ciclo de espera actual es realmente un 429.
+      // El chip 500 es barra de progreso animada por CSS, sin countdown.
       if (ultimoStatus === 429 && segundosRestantes > 0) {
         showRateLimitBanner(source, segundosRestantes);
       }
@@ -53,18 +40,10 @@ const conBackoffVisible = (source, peticion) => {
   });
 };
 
-// fetchDatasetResiliente: capa común a teams/games/stadiums (RF-07 a RF-10).
-// 1) intenta la petición en vivo. Ante ApiError 429/500 (respuesta HTTP real),
-//    fetchWithBackoff reintenta con countdown/barra visibles. Ante NetworkError
-//    (sin respuesta: sin conexión, DNS, timeout) NO reintenta — no hay nada
-//    que reintentar con backoff si el servidor nunca contestó — y cae directo
-//    al paso 3.
-// 2) si tiene éxito, cachea la respuesta, limpia los banners de ESTE source y
-//    retira el badge de caché si este dataset lo tenía activo.
-// 3) si falla (agotado el backoff, o NetworkError inmediato) y hay copia
-//    cacheada, la devuelve mostrando el badge "Datos no actualizados" (RF-10).
-// 4) si no hay caché, o el error es 401 (sesión expirada, RF-08), se
-//    propaga tal cual para que la capa de arriba decida qué hacer.
+// Capa común a teams/games/stadiums (RF-07 a RF-10): reintenta con backoff
+// ante 429/500 (NetworkError sin respuesta no reintenta, va directo a
+// caché); si falla y hay copia cacheada la devuelve con badge "Datos no
+// actualizados" (RF-10); si no hay caché, o es 401, propaga el error.
 const fetchDatasetResiliente = async (cacheKey, path, responseKey) => {
   try {
     const respuesta = await conBackoffVisible(cacheKey, () => authFetch(path, getToken()));
@@ -121,41 +100,14 @@ export const getGames = async () => fetchDatasetResiliente('games', '/get/games'
 // deja que el itinerario se renderice igual con stadium = null por partido.
 export const getStadiums = async () => fetchDatasetResiliente('stadiums', '/get/stadiums', 'stadiums');
 
-// simulateApiError: SOLO DESARROLLO. Base compartida por simulateRateLimit /
-// simulateRateLimitRecovery (429) y simulateServerError (500) — pasa por el
-// mismo conBackoffVisible/fetchWithBackoff/resilienceBanners que un error
-// real (fetchDatasetResiliente arriba), solo que `peticionFalsa` reemplaza a
-// `authFetch` como la función que "falla". La diferencia clave con la versión
-// anterior: `peticionFalsa` YA NO lanza `new ApiError(status, mensaje)`
-// sintético en memoria — hace un fetch() REAL a /dev-mock/<status>
-// (fetchSimulatedError, httpClient.js) y deja que el mismo
-// `clasificarRespuesta` de producción construya el ApiError a partir de esa
-// respuesta HTTP real. Eso significa que la pestaña Network SÍ muestra una
-// petición real, con status/headers/body reales, en cada intento — requisito
-// explícito de la rúbica (RNF-04) que un `throw` en memoria no cumplía. El
-// countdown/barra y los reintentos con backoff creciente (1s→2s→4s→8s) son
-// 100% el código de producción — lo único "de dev" es que el servidor detrás
-// del fetch es dev-mock (Vite, local) en vez de worldcup26.ir.
-//
-// `failCount` controla cuántos intentos fallan antes de resolver:
-// - Infinity (default): nunca se recupera, agota los 4 reintentos y cae a
-//   caché — es el caso "el servidor sigue caído".
-// - un número finito (ej. 2): falla esa cantidad de veces y el siguiente
-//   intento hace un fetch real a /dev-mock/200 (fetchSimulatedSuccess) —
-//   es el caso "el servidor se recupera a mitad del backoff", con los
-//   banners desapareciendo limpiamente sin pasar por caché.
-//
-// `datasetCacheKey` ('teams'/'games'/'stadiums') es SOLO de dónde se lee el
-// dato cacheado real para el badge de caché (así la demo de "cae a caché"
-// muestra datos reales, no un placeholder). El `source` que se le pasa a
-// conBackoffVisible/los banners de 429-500 es uno propio, con prefijo
-// `dev-sim:`, DISTINTO de `datasetCacheKey` — si no, un ciclo de backoff real
-// en curso sobre ese mismo dataset (ej. getTeams() corriendo en iniciarApp()
-// al cargar la página) podía mostrar SU banner (real) al mismo tiempo que el
-// simulado, pareciendo una clasificación cruzada cuando en realidad eran dos
-// backoffs independientes compitiendo por el mismo `source` (bug reportado:
-// clic en "Simular 500" mostraba también 429 porque la API real estaba
-// genuinamente rate-limited sobre 'teams' en ese instante).
+// SOLO DESARROLLO. Base compartida por simulateRateLimit/simulateRateLimitRecovery
+// (429) y simulateServerError (500): usa fetch() real a /dev-mock/<status>
+// (no un ApiError sintético) para que Network muestre status/headers/body
+// reales y el backoff/countdown sea 100% el código de producción.
+// `failCount` (default Infinity) controla cuántos intentos fallan antes de
+// resolver con /dev-mock/200 ("el servidor se recupera a mitad del backoff").
+// `source` usa el prefijo `dev-sim:` para no compartir banner con un backoff
+// real en curso sobre el mismo dataset (ej. getTeams() al cargar la página).
 const simulateApiError = async (status, datasetCacheKey, { failCount = Infinity } = {}) => {
   if (!import.meta.env.DEV) return;
 
@@ -165,15 +117,9 @@ const simulateApiError = async (status, datasetCacheKey, { failCount = Infinity 
   const peticionFalsa = async () => {
     intentosHechos += 1;
     if (intentosHechos <= failCount) {
-      // Fetch real a /dev-mock/<status> — aparece en Network con status,
-      // headers y body reales. clasificarRespuesta (httpClient.js) construye
-      // el ApiError real a partir de esa Response, no uno sintético.
       return await fetchSimulatedError(status);
     }
-    // Recuperación simulada: fetch real a /dev-mock/200 (también visible
-    // en Network) — no hay dataset nuevo real que aplicar, la app sigue
-    // mostrando lo que ya tenía cargado; esto solo demuestra que el backoff
-    // puede terminar en éxito.
+    // No hay dataset nuevo que aplicar; solo demuestra que el backoff puede terminar en éxito.
     return await fetchSimulatedSuccess();
   };
 
@@ -201,59 +147,29 @@ const simulateApiError = async (status, datasetCacheKey, { failCount = Infinity 
   }
 };
 
-// simulateRateLimit: SOLO DESARROLLO. La API real de prueba tiene una caché
-// HTTP de 30s que sirve la URL exacta sin parámetros (la que usa la app) sin
-// pasar por el rate limiter, aunque ya se haya agotado el límite real con
-// otras variantes de URL — confirmado con los headers RateLimit-* en pruebas
-// manuales. Eso hace poco práctico/repetible disparar un 429 real contra el
-// propio servidor para la demo. Esta variante SIEMPRE agota los reintentos y
-// cae a caché (failCount por defecto = Infinity) — ver simulateRateLimitRecovery
-// para el caso donde el backoff termina en éxito.
-//
-// Para quitarlo antes de la entrega final: borra esta función, el import de
-// mountDevRateLimitSimulator y la línea que lo monta en main.js.
+// SOLO DESARROLLO. La API de prueba cachea en HTTP por 30s la URL exacta sin
+// parámetros, así que sirve sin pasar por el rate limiter aunque el límite
+// real ya esté agotado — poco práctico disparar un 429 real para la demo.
+// Agota siempre los reintentos y cae a caché; ver simulateRateLimitRecovery
+// para el caso donde el backoff sí se recupera.
+// Para quitarlo: borrar esta función, el import de mountDevRateLimitSimulator y su línea en main.js.
 export const simulateRateLimit = (cacheKey = 'teams') => simulateApiError(429, cacheKey);
 
-// simulateRateLimitRecovery: SOLO DESARROLLO. Misma mecánica que
-// simulateRateLimit, pero falla solo los primeros 2 intentos (fetch real a
-// /dev-mock/429) y el 3ro hace un fetch real a /dev-mock/200 — para
-// demostrar el caso donde el backoff SÍ se recupera (countdown 1s → 2s,
-// banner desaparece, la app sigue con datos en vivo) en vez de terminar
-// siempre cayendo a caché.
+// Igual que simulateRateLimit pero falla solo 2 intentos y el 3ro resuelve —
+// demuestra el caso donde el backoff SÍ se recupera.
 export const simulateRateLimitRecovery = (cacheKey = 'teams') => simulateApiError(429, cacheKey, { failCount: 2 });
 
-// simulateServerError: SOLO DESARROLLO. No hay forma confiable de forzar un
-// 500 real y repetible contra la API de prueba para la demo (no expone un
-// endpoint de fallo controlado) — mismo problema práctico que motivó
-// simulateRateLimit, pero para el banner "Error de servidor · reintentando
-// conexión..." con barra de progreso (ver resilienceBanners.js).
-//
-// Para quitarlo antes de la entrega final: borra esta función, el import de
-// mountDevServerErrorSimulator y la línea que lo monta en main.js.
+// SOLO DESARROLLO. La API de prueba no expone un endpoint de fallo controlado
+// para forzar un 500 real y repetible (mismo problema que simulateRateLimit).
+// Para quitarlo: borrar esta función, el import de mountDevServerErrorSimulator y su línea en main.js.
 export const simulateServerError = (cacheKey = 'teams') => simulateApiError(500, cacheKey);
 
-// simulateStadiumsFailureAfterRender: SOLO DESARROLLO. Reto de resiliencia
-// específico del subproyecto (RF-11 / CLAUDE.md 5.5): si `/get/stadiums`
-// falla DESPUÉS de que el itinerario ya se renderizó con partidos reales
-// (`/get/games`), las tarjetas no deben desaparecer ni re-renderizarse
-// completas — solo el campo de estadio de las afectadas. Para demostrarlo en
-// vivo se necesita poder forzar ese fallo aislado bajo demanda, en un momento
-// posterior al render inicial (no al cargar la app) — igual que los otros
-// simuladores dev-only, se hace con un fetch() REAL a /dev-mock/500
-// (fetchSimulatedError, httpClient.js), visible en Network con status real,
-// para que también pase por el backoff de producción (conBackoffVisible).
-//
-// A diferencia de `simulateServerError`, esta función SIEMPRE propaga el
-// error al llamador (main.js) en vez de tragárselo — el llamador es quien
-// decide aplicar la actualización parcial (markStadiumsUnavailableForCards)
-// sobre las tarjetas ya en pantalla; no cae a caché aquí porque el punto de
-// la demo es mostrar el estado "Estadio no disponible", no el badge de
-// caché (ese es el camino de RF-10, ya cubierto por fetchDatasetResiliente).
-// `/get/games` y `/get/teams` NO se vuelven a pedir en ningún punto de este
-// flujo — los partidos ya renderizados sencillamente se quedan como están.
-//
-// Para quitarlo antes de la entrega final: borra esta función, el import de
-// mountDevStadiumsFailureSimulator y las líneas que lo montan en main.js.
+// SOLO DESARROLLO. Reto RF-11 (CLAUDE.md 5.5): si /get/stadiums falla
+// DESPUÉS del render inicial, las tarjetas no deben desaparecer, solo su
+// campo de estadio. A diferencia de simulateServerError, esta función
+// SIEMPRE propaga el error a main.js (que aplica markStadiumsUnavailableForCards)
+// en vez de caer a caché — el punto es mostrar "Estadio no disponible", no el badge RF-10.
+// Para quitarlo: borrar esta función, el import de mountDevStadiumsFailureSimulator y sus líneas en main.js.
 export const simulateStadiumsFailureAfterRender = async () => {
   if (!import.meta.env.DEV) return;
   try {
@@ -269,17 +185,9 @@ export const simulateStadiumsFailureAfterRender = async () => {
   }
 };
 
-// simulateSessionExpired: SOLO DESARROLLO. Igual que los anteriores, hace un
-// fetch() REAL a /dev-mock/401 (fetchSimulatedError) y deja que el mismo
-// clasificarRespuesta de producción construya el ApiError(401) real a partir
-// de esa respuesta — visible en Network con status/headers/body reales, en
-// vez de que main.js llame a manejarSesionExpirada() directamente sin
-// petición de por medio. Devuelve una vez que la clasificación ya ocurrió;
-// quien llama (main.js) dispara manejarSesionExpirada() después, igual que
-// lo haría ante un 401 real capturado en cualquier fetchDatasetResiliente.
-//
-// Para quitarlo antes de la entrega final: borra esta función, el import de
-// mountDevSessionSimulator y la línea que lo monta en main.js.
+// SOLO DESARROLLO. Fetch real a /dev-mock/401 para que clasificarRespuesta
+// construya el ApiError(401) real (visible en Network) en vez de simularlo a mano.
+// Para quitarlo: borrar esta función, el import de mountDevSessionSimulator y su línea en main.js.
 export const simulateSessionExpired = async () => {
   if (!import.meta.env.DEV) return;
   try {

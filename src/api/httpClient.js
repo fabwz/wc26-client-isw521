@@ -1,24 +1,9 @@
-// Wrapper único de fetch autenticado. Toda petición a un endpoint de datos
-// (/get/*) debe pasar por aquí para garantizar el header Authorization y un
-// manejo de errores HTTP consistente (401/429/500) en un solo lugar.
-
-// En desarrollo (`npm run dev`), usamos la ruta relativa /wc26-api, que Vite
-// redirige a https://worldcup26.ir server-to-server (ver vite.config.js) para
-// evitar el bloqueo de CORS del navegador. En build de producción no hay
-// servidor de Vite corriendo, así que se llama directo a la API real.
+// En dev, /wc26-api pasa por el proxy de Vite para evitar CORS (ver vite.config.js).
 const API_BASE_URL = import.meta.env.DEV ? '/wc26-api' : 'https://worldcup26.ir';
 
-// Sin esto, `fetch` no tiene timeout propio: si no hay conexión real (no solo
-// "el servidor respondió mal", sino que el socket nunca llega a establecerse),
-// el navegador puede tardar decenas de segundos o más en rechazar la promesa
-// según la pila de red del SO — la app se quedaba "congelada" hasta que el
-// usuario recargaba la página, que es justo cuando el intento fresco tenía
-// más chance de fallar rápido. Con AbortController forzamos un límite propio.
+// fetch no tiene timeout propio: sin esto, una conexión caída puede colgar la app.
 const REQUEST_TIMEOUT_MS = 8000;
 
-// ApiError: la API SÍ respondió, con un código de estado HTTP concreto.
-// Permite a las capas superiores (domain/ui) distinguir 401/429/500 sin tener
-// que parsear el objeto Response.
 export class ApiError extends Error {
   constructor(status, message) {
     super(message);
@@ -27,11 +12,7 @@ export class ApiError extends Error {
   }
 }
 
-// NetworkError: la petición NUNCA llegó a obtener una respuesta HTTP (sin
-// conexión, DNS caído, timeout propio). No lleva `status` — es la señal para
-// que utils/backoff.js NO intente reintentos de 429/500 (no aplican, no hubo
-// respuesta que clasificar) y para que la capa de datos vaya directo al
-// camino de caché/offline (RF-10).
+// Sin `status`: señala a backoff.js que no hubo respuesta que clasificar/reintentar.
 export class NetworkError extends Error {
   constructor(message, cause) {
     super(message);
@@ -40,10 +21,6 @@ export class NetworkError extends Error {
   }
 }
 
-// fetchConTimeout: envuelve `fetch` para que un fallo de conexión real
-// (TypeError "Failed to fetch") o un cuelgue de red (AbortError por nuestro
-// propio timeout) se normalicen siempre como NetworkError, nunca como un
-// error genérico sin clasificar ni como un ApiError con status inventado.
 const fetchConTimeout = async (url, options) => {
   const controlador = new AbortController();
   const timeoutId = setTimeout(() => controlador.abort(), REQUEST_TIMEOUT_MS);
@@ -51,10 +28,8 @@ const fetchConTimeout = async (url, options) => {
   try {
     return await fetch(url, { ...options, signal: controlador.signal });
   } catch (error) {
-    // TypeError: sin conexión / DNS / CORS. AbortError: superó REQUEST_TIMEOUT_MS.
-    // Ambos casos significan lo mismo para la app: no hubo respuesta del servidor.
-    // TEMPORAL: log para confirmar en Console qué camino se está tomando de
-    // verdad (retirar una vez validado en vivo).
+    // TEMPORAL: confirma en Console si el error real es TypeError (sin conexión/DNS/CORS)
+    // o AbortError (timeout) — retirar una vez validado en vivo.
     console.debug('[resiliencia] NetworkError — sin respuesta HTTP', { url, causaOriginal: error.name });
     throw new NetworkError('No se pudo conectar con el servidor', error);
   } finally {
@@ -62,14 +37,10 @@ const fetchConTimeout = async (url, options) => {
   }
 };
 
-// clasificarRespuesta: única fuente de verdad para traducir un status HTTP a
-// ApiError. Se llama solo cuando SÍ hubo respuesta (fetchConTimeout ya filtró
-// los fallos de red puros), así que aquí `respuesta.status` siempre es real.
 const clasificarRespuesta = async (respuesta, mensajes) => {
   if (respuesta.status !== 200) {
-    // TEMPORAL: log para confirmar en Console que el status viene de una
-    // respuesta HTTP real (no de una NetworkError disfrazada) — retirar una
-    // vez validado en vivo.
+    // TEMPORAL: confirma en Console que el status viene de una respuesta HTTP
+    // real, no de una NetworkError disfrazada — retirar una vez validado en vivo.
     console.debug('[resiliencia] ApiError — respuesta HTTP real', { url: respuesta.url, status: respuesta.status });
   }
   if (respuesta.status === 401) {
@@ -87,11 +58,6 @@ const clasificarRespuesta = async (respuesta, mensajes) => {
   return await respuesta.json();
 };
 
-// authFetch: agrega el header Authorization: Bearer <token>. Lanza NetworkError
-// si no hubo respuesta (sin conexión/timeout) o ApiError tipado según el
-// código de estado si sí la hubo. No hace reintentos (eso es responsabilidad
-// de utils/backoff.js, que solo reintenta ante ApiError 429/5xx) ni sabe nada
-// de UI/DOM.
 export const authFetch = async (path, token) => {
   const respuesta = await fetchConTimeout(`${API_BASE_URL}${path}`, {
     headers: {
@@ -105,9 +71,7 @@ export const authFetch = async (path, token) => {
   });
 };
 
-// publicFetch: para los endpoints /auth/*, que no llevan Authorization header
-// (son los que generan el token). Mismo manejo explícito de NetworkError vs
-// 401/429/500.
+// Para los endpoints /auth/*, que no llevan Authorization header.
 export const publicFetch = async (path, body) => {
   const respuesta = await fetchConTimeout(`${API_BASE_URL}${path}`, {
     method: 'POST',
@@ -121,28 +85,11 @@ export const publicFetch = async (path, body) => {
   });
 };
 
-// fetchSimulatedError / fetchSimulatedSuccess: SOLO DESARROLLO, usadas por
-// los simuladores dev-only de worldCupApi.js (401/429/500/RF-11). La rúbrica
-// exige poder mostrar en la pestaña Network un código de estado, encabezados
-// y cuerpo REALES — un ApiError construido en memoria con `new ApiError(...)`
-// no genera ninguna entrada en Network. Estas funciones hacen un fetch()
-// real a /dev-mock/<status> (middleware del propio dev server de Vite, ver
-// vite.config.js) y lo pasan por el MISMO `clasificarRespuesta` que clasifica
-// cualquier respuesta real de la API — el ApiError resultante sale de una
-// Response real, no de un atajo sintético.
-//
-// Antes usaba httpstat.us (servicio público externo): resultó poco confiable
-// en pruebas reales (ERR_EMPTY_RESPONSE intermitente) — un riesgo directo el
-// día de la defensa si la petición externa falla por su cuenta justo cuando
-// se necesita mostrar el error. /dev-mock/* nunca sale a internet, así que no
-// depende de la disponibilidad de un tercero. Ruta relativa (mismo origen):
-// solo responde dentro del proceso del dev server (`npm run dev`), no existe
-// en el build de producción.
+// SOLO DESARROLLO. httpstat.us (servicio externo) resultó poco confiable en
+// pruebas (ERR_EMPTY_RESPONSE intermitente); /dev-mock/* es un middleware
+// local del dev server (vite.config.js) que no sale a internet.
 const DEV_MOCK_BASE_URL = '/dev-mock';
 
-// fetchSimulatedError: dispara clasificarRespuesta contra una respuesta HTTP
-// real con el `status` pedido (401/429/500) — para esos códigos, siempre
-// lanza ApiError, igual que ante el mismo status viniendo de la API real.
 export const fetchSimulatedError = async (status) => {
   const respuesta = await fetchConTimeout(`${DEV_MOCK_BASE_URL}/${status}`, {
     headers: { Accept: 'application/json' },
@@ -153,11 +100,7 @@ export const fetchSimulatedError = async (status) => {
   });
 };
 
-// fetchSimulatedSuccess: para el caso "el backoff se recupera" (ver
-// simulateRateLimitRecovery). No pasa por clasificarRespuesta (que intenta
-// `.json()` en el camino de éxito y espera la forma de un dataset real);
-// aquí solo importa que la petición real complete con 2xx, visible igual en
-// Network.
+// No pasa por clasificarRespuesta: esta espera la forma de un dataset real, aquí solo importa el 2xx.
 export const fetchSimulatedSuccess = async () => {
   const respuesta = await fetchConTimeout(`${DEV_MOCK_BASE_URL}/200`, {
     headers: { Accept: 'application/json' },

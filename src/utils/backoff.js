@@ -1,11 +1,5 @@
-// fetchWithBackoff: reintenta automáticamente una petición ante 429/500 con
-// espera creciente (RF-09): 1s -> 2s -> 4s -> 8s. No sabe nada de DOM/UI; solo
-// invoca los callbacks que le pasen (onRetry en cada intento fallido, onTick
-// cada segundo mientras espera, para alimentar un countdown en pantalla).
 const DELAYS_MS = [1000, 2000, 4000, 8000];
 
-// espera: resuelve tras `delayMs`, llamando a onTick(segundosRestantes) cada
-// segundo. Permite que la UI muestre un countdown en tiempo real (RF-09).
 const espera = (delayMs, onTick) => {
   return new Promise((resolve) => {
     let restanteMs = delayMs;
@@ -24,15 +18,8 @@ const espera = (delayMs, onTick) => {
   });
 };
 
-// esRetriable: solo 429 (rate limit) y 5xx (servidor) disparan backoff. 401 y
-// el resto de errores se propagan de inmediato (los maneja RF-08 u otra capa).
 const esRetriable = (error) => error?.status === 429 || error?.status >= 500;
 
-// fetchWithBackoff: ejecuta `requestFn` (debe devolver una Promise, típicamente
-// una llamada a authFetch) y reintenta hasta agotar DELAYS_MS si el error es
-// retriable. onRetry({ status, attempt, delayMs }) se dispara antes de cada
-// espera, para que la capa de UI muestre el banner correcto (429 vs 500).
-// onTick(segundosRestantes) se reenvía a `espera` para el countdown visible.
 export const fetchWithBackoff = async (requestFn, { onRetry, onTick } = {}) => {
   let intento = 0;
 

@@ -1,8 +1,4 @@
-// Lógica de cruce de datos del itinerario (RF-02 a RF-05). Puro: no hace
-// fetch (eso es responsabilidad de /api) ni toca el DOM (eso es de /ui).
-
-// parseLocalDate: local_date llega como "MM/DD/YYYY HH:mm", no ISO — no se
-// puede pasar directo a `new Date(...)` de forma confiable entre navegadores.
+// local_date llega como "MM/DD/YYYY HH:mm", no ISO — no se puede pasar directo a `new Date(...)`.
 const parseLocalDate = (localDate) => {
   const [fecha, hora] = localDate.split(' ');
   const [mes, dia, anio] = fecha.split('/').map(Number);
@@ -10,16 +6,12 @@ const parseLocalDate = (localDate) => {
   return new Date(anio, mes - 1, dia, horas, minutos);
 };
 
-// resolveTeamName: nombre completo real del equipo (RF-01). Si el equipo aún
-// no está definido (fase de eliminación, id "0"), usa el label de respaldo
-// que ya provee /get/games (ej. "Runner-up Group A").
+// Si el equipo aún no está definido (fase de eliminación, id "0"), usa el label de respaldo de /get/games.
 const resolveTeamName = (teamId, teamLabel, teamsById) => {
   if (teamId === '0') return teamLabel;
   return teamsById.get(teamId)?.name_en ?? teamLabel;
 };
 
-// resolveStadiumInfo: cruce de stadium_id contra /get/stadiums (RF-03).
-// Devuelve texto explícito y completo, nunca códigos abreviados.
 const resolveStadiumInfo = (stadiumId, stadiumsById) => {
   const estadio = stadiumsById.get(stadiumId);
   if (!estadio) return null;
@@ -31,9 +23,6 @@ const resolveStadiumInfo = (stadiumId, stadiumsById) => {
   };
 };
 
-// buildItinerary: dado un equipo seleccionado y las 3 colecciones ya
-// obtenidas, arma el itinerario completo: partidos filtrados y ordenados,
-// con estadio cruzado y conteo de ciudades distintas visitadas.
 export const buildItinerary = (selectedTeamId, teams, games, stadiums) => {
   const teamsById = new Map(teams.map((team) => [team.id, team]));
   const stadiumsById = new Map(stadiums.map((stadium) => [stadium.id, stadium]));

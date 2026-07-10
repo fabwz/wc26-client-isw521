@@ -1,19 +1,4 @@
-// devToolsPanel: SOLO DESARROLLO. Consolida los 5 botones de simulación
-// (401, 429-agota, 429-recupera, 500, fallo-estadios) detrás de un único
-// botón flotante (ícono de tuerca) para que no compitan por espacio en pantalla con las
-// tarjetas de itinerario. Al hacer clic despliega un panel vertical con los
-// 5 botones ya definidos en sus propios módulos (devSessionSimulator.js,
-// devRateLimitSimulator.js, devServerErrorSimulator.js,
-// devStadiumsFailureSimulator.js) — este archivo no reimplementa esos
-// triggers, solo les pasa un contenedor distinto a document.body.
-//
-// Los atajos de teclado (Ctrl+Shift+E/R/T/S/D) los registra cada simulador
-// individual y no dependen de este panel: siguen funcionando igual, el
-// panel es solo una alternativa visual de clic.
-//
-// `import.meta.env.DEV` hace que todo esto (botón + panel + los 5
-// simuladores que monta) se elimine del bundle de producción por
-// tree-shaking, igual que cada simulador ya hacía por separado.
+// SOLO DESARROLLO. Agrupa los simuladores en un botón flotante único.
 import { mountDevSessionSimulator } from './devSessionSimulator.js';
 import { mountDevRateLimitSimulator } from './devRateLimitSimulator.js';
 import { mountDevServerErrorSimulator } from './devServerErrorSimulator.js';
@@ -30,8 +15,7 @@ export const mountDevToolsPanel = ({
 
   const boton = document.createElement('button');
   boton.type = 'button';
-  // Ícono "settings" de Lucide (lucide.dev), copiado como SVG inline estático
-  // — nunca el paquete npm ni el script CDN con createIcons() (CLAUDE.md 2).
+  // Ícono "settings" de Lucide, SVG inline estático (CLAUDE.md 2).
   boton.innerHTML =
     '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" ' +
     'fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">' +

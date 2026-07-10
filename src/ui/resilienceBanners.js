@@ -1,20 +1,7 @@
-// resilienceBanners: chips/banners glass que aparecen AUTOMÁTICAMENTE en
-// pantalla para los 3 estados de resiliencia (RF-09/RF-10) — countdown de
-// 429, barra de progreso de 500 y badge de datos en caché (offline). Ninguno
-// requiere que el usuario abra algo para verlos (DESIGN.md sección 5).
-// Solo DOM: no sabe nada de fetch/backoff, solo cómo dibujarse y actualizarse.
-
-// Los 3 datasets (teams/games/stadiums) se piden en paralelo (RNF-03) y cada
-// uno corre su propio backoff de forma independiente. Si el chip fuera un
-// simple mostrar/ocultar global, el `hide` de una petición que ya terminó
-// (éxito o caché) podía borrar el chip de OTRA que seguía reintentando —
-// exactamente la condición de carrera reportada (banners que aparecen y
-// desaparecen solos a mitad de ciclo). Por eso cada show/hide recibe un
-// `source` (el cacheKey del dataset: 'teams' | 'games' | 'stadiums') y el
-// chip solo se retira del DOM cuando NINGÚN source activo lo sigue necesitando.
-
-// contenedorBanners: stack fijo bajo la navbar, esquina superior derecha,
-// donde viven los 3 chips. Se crea una sola vez y se reutiliza.
+// teams/games/stadiums se piden en paralelo y cada uno corre su propio
+// backoff: un `hide` global podía borrar el chip de otro dataset que seguía
+// reintentando, así que cada show/hide recibe un `source` y el chip solo se
+// retira cuando ningún source activo lo sigue necesitando.
 let contenedorBanners = null;
 const getContenedor = () => {
   if (contenedorBanners) return contenedorBanners;
@@ -25,10 +12,6 @@ const getContenedor = () => {
   return contenedorBanners;
 };
 
-// ---------------------------------------------------------------------------
-// Countdown 429 (límite de tasa) — número en mono-lg, se actualiza cada
-// segundo con el valor que reporta fetchWithBackoff, y desaparece solo al
-// resolverse el reintento (RF-09).
 let chip429 = null;
 const segundosPorSource429 = new Map(); // source -> segundos restantes
 
@@ -60,10 +43,6 @@ export const hideRateLimitBanner = (source) => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Backoff en curso 500 (error de servidor) — barra de progreso lineal que
-// recorre el ancho del chip durante `delayMs`, misma aparición automática que
-// el countdown (RF-09).
 let chip500 = null;
 const sourcesActivas500 = new Set();
 
@@ -103,11 +82,6 @@ export const hideServerErrorBanner = (source) => {
   }
 };
 
-// ---------------------------------------------------------------------------
-// Indicador offline / caché — badge con punto parpadeante y hora del dato
-// cacheado. Permanece visible mientras los datos en pantalla sigan siendo los
-// del caché (RF-10); se oculta explícitamente cuando vuelve a haber datos
-// frescos para ESE dataset en particular.
 let chipCache = null;
 const timestampsPorSourceCache = new Map(); // source -> timestamp del dato cacheado en uso
 
@@ -136,9 +110,6 @@ export const showCacheBanner = (source, timestampMs) => {
   chipCache.querySelector('[data-role="time"]').textContent = formatHora(masReciente);
 };
 
-// hideCacheBanner: se llama cuando ESE dataset vuelve a tener datos frescos
-// (petición en vivo exitosa) — solo retira el chip del DOM si ningún otro
-// dataset sigue mostrando datos cacheados.
 export const hideCacheBanner = (source) => {
   timestampsPorSourceCache.delete(source);
   console.debug('[resiliencia] hideCacheBanner', { source, activosRestantes: [...timestampsPorSourceCache.keys()] });

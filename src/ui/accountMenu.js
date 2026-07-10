@@ -1,8 +1,3 @@
-// accountMenu: botón de cuenta con avatar + dropdown glass (navbar, sección
-// 4.1 de DESIGN.md). Solo DOM — recibe el usuario ya autenticado y notifica
-// onLogout() al hacer clic en "Cerrar sesión" (clearAuth() vive en main.js).
-// Sin jerga técnica visible: nada de "token"/"JWT" en el markup.
-
 const ICON_CHEVRON_DOWN = `
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
 `;
@@ -15,9 +10,6 @@ const ICON_USER = `
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
 `;
 
-// renderAccountMenu: dibuja el botón de cuenta dentro de `container` (un slot
-// de la navbar) y su dropdown glass. onLogout() se invoca ya sin argumentos;
-// quien llama decide qué hacer con la sesión (clearAuth + volver a login).
 export const renderAccountMenu = (container, user, { onLogout } = {}) => {
   container.innerHTML = `
     <div class="relative">

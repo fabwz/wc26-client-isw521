@@ -1,18 +1,4 @@
-// devStadiumsFailureSimulator: SOLO DESARROLLO. Botón/atajo para demostrar
-// RF-11 (CLAUDE.md 5.5) bajo demanda: fuerza que SOLO `/get/stadiums` falle,
-// en un momento posterior a que el itinerario ya esté renderizado con datos
-// reales de `/get/games` y `/get/teams` — nunca al cargar la app, porque el
-// requisito es específicamente sobre un fallo que ocurre DESPUÉS del render
-// inicial. `trigger` (main.js) dispara `simulateStadiumsFailureAfterRender`
-// (worldCupApi.js) y, si hay un itinerario en pantalla, aplica la
-// actualización parcial por tarjeta (markStadiumsUnavailableForCards,
-// itineraryCards.js) — nunca un re-render completo de la lista.
-//
-// Para quitarlo antes de la entrega final: borra este archivo, la función
-// `simulateStadiumsFailureAfterRender` en worldCupApi.js, y las líneas que lo
-// montan en main.js. `import.meta.env.DEV` ya hace que Vite lo elimine por
-// tree-shaking del build de producción (igual que los demás simuladores).
-// `container` opcional: ver devSessionSimulator.js para el mismo patrón.
+// SOLO DESARROLLO. Fuerza que solo /get/stadiums falle, después del render inicial (RF-11).
 export const mountDevStadiumsFailureSimulator = (trigger, container) => {
   if (!import.meta.env.DEV) return;
 

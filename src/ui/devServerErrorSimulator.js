@@ -1,15 +1,4 @@
-// devServerErrorSimulator: SOLO DESARROLLO. La API de prueba no expone forma
-// de forzar un 500 real y repetible contra el propio servidor para la demo
-// (mismo problema práctico que motivó devRateLimitSimulator.js para el 429),
-// así que este módulo dispara `simulateServerError` (worldCupApi.js), que
-// reutiliza el mismo camino real (conBackoffVisible → fetchWithBackoff →
-// resilienceBanners) que un 500 real, solo con el origen del error simulado.
-//
-// Para quitarlo antes de la entrega final: borra este archivo, la función
-// `simulateServerError` en worldCupApi.js, y las 2 líneas que lo montan en
-// main.js. `import.meta.env.DEV` ya hace que Vite lo elimine por
-// tree-shaking del build de producción (igual que los otros 2 simuladores).
-// `container` opcional: ver devSessionSimulator.js para el mismo patrón.
+// SOLO DESARROLLO. `container` opcional: ver devSessionSimulator.js para el mismo patrón.
 export const mountDevServerErrorSimulator = (trigger500, container) => {
   if (!import.meta.env.DEV) return;
 
