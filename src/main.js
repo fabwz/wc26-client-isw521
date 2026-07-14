@@ -25,6 +25,7 @@ import {
   simulateSessionExpired,
 } from './api/worldCupApi.js';
 import { buildItinerary } from './domain/itineraryService.js';
+import { PROJECTS } from './ui/projectMenu.js';
 
 // worldCupApi.js no conoce la UI: main.js inyecta estos callbacks (RF-09/RF-10)
 // en cada llamada a getTeams/getGames/getStadiums/simulate* — ver worldCupApi.js.
@@ -70,19 +71,27 @@ mountDevToolsPanel({
   },
 });
 
-const iniciarApp = async () => {
-  app.innerHTML = `
-    <div id="navbar-slot"></div>
-    <main class="min-h-screen px-4 py-24 max-w-5xl mx-auto flex flex-col gap-8">
-      <div id="team-selector-slot" class="max-w-xs"></div>
-      <div id="itinerary-slot"></div>
-    </main>
+// Vista activa entre los 5 subproyectos (sin librería de router, switch de estado + render condicional).
+let vistaActiva = 'ruta-del-campeon';
+
+const renderVistaEnConstruccion = (container, proyectoId) => {
+  const proyecto = PROJECTS.find((item) => item.id === proyectoId);
+  container.innerHTML = `
+    <div class="glass rounded-[20px] p-8 flex flex-col items-center gap-2 text-center max-w-md mx-auto">
+      <p class="display-md text-white">${proyecto?.name ?? 'Proyecto'}</p>
+      <p class="body-md text-text-secondary">Esta vista está en construcción. Pronto disponible.</p>
+    </div>
+  `;
+};
+
+const renderRutaDelCampeon = async (container) => {
+  container.innerHTML = `
+    <div id="team-selector-slot" class="max-w-xs"></div>
+    <div id="itinerary-slot"></div>
   `;
 
-  renderNavbar(app.querySelector('#navbar-slot'), getUser(), { onLogout: cerrarSesion });
-
-  const selectorSlot = app.querySelector('#team-selector-slot');
-  const itinerarySlot = app.querySelector('#itinerary-slot');
+  const selectorSlot = container.querySelector('#team-selector-slot');
+  const itinerarySlot = container.querySelector('#itinerary-slot');
 
   let teams;
   let games;
@@ -129,6 +138,45 @@ const iniciarApp = async () => {
       renderItineraryCards(itinerarySlot, equipoSeleccionado.name_en, equipoSeleccionado.flag, itinerario);
     },
   });
+};
+
+const renderVistaActiva = async (viewSlot) => {
+  if (vistaActiva === 'ruta-del-campeon') {
+    await renderRutaDelCampeon(viewSlot);
+  } else {
+    renderVistaEnConstruccion(viewSlot, vistaActiva);
+  }
+};
+
+const iniciarApp = async () => {
+  app.innerHTML = `
+    <div id="navbar-slot"></div>
+    <main class="min-h-screen px-4 py-24 max-w-5xl mx-auto flex flex-col gap-8">
+      <div id="view-slot"></div>
+    </main>
+  `;
+
+  const viewSlot = app.querySelector('#view-slot');
+  const navbarSlot = app.querySelector('#navbar-slot');
+
+  const seleccionarProyecto = async (proyectoId) => {
+    if (proyectoId === vistaActiva) return;
+    vistaActiva = proyectoId;
+    renderNavbar(navbarSlot, getUser(), {
+      onLogout: cerrarSesion,
+      activeProjectId: vistaActiva,
+      onProjectSelected: seleccionarProyecto,
+    });
+    await renderVistaActiva(viewSlot);
+  };
+
+  renderNavbar(navbarSlot, getUser(), {
+    onLogout: cerrarSesion,
+    activeProjectId: vistaActiva,
+    onProjectSelected: seleccionarProyecto,
+  });
+
+  await renderVistaActiva(viewSlot);
 };
 
 if (isAuthenticated()) {
