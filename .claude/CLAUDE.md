@@ -6,14 +6,24 @@ Este archivo es el contexto de arquitectura para Claude Code al trabajar en este
 
 ## 1. Qué es este proyecto
 
-Aplicación web **"La Ruta del Campeón"** para el curso ISW-521 (Programación en Ambiente Web I). Es una SPA de página única que consume la API pública del Mundial 2026 (`https://worldcup26.ir`) para construir un **itinerario de partidos** de un equipo seleccionado, cruzando tres colecciones de datos: equipos, partidos y estadios.
+Aplicación web para el curso ISW-521 (Programación en Ambiente Web I), Categoría A: Cruce de Datos y Analítica. Es una SPA sin framework que consume la API pública del Mundial 2026 (`https://worldcup26.ir`) para construir **5 vistas derivadas distintas**, una por cada subproyecto del catálogo:
+
+1. **La Ruta del Campeón** — ✅ implementado y verificado. Itinerario de partidos de un equipo (equipos + partidos + estadios).
+2. **Rastreador de Goleadas** — pendiente. Lista ordenada de partidos con diferencia de gol ≥3.
+3. **El Muro** — pendiente. Ranking de las 5 mejores defensas + próximo rival de cada una.
+4. **Analítica de Estadios** — pendiente. Gráfica de barras de asistencia potencial por estadio.
+5. **Radar de Empates** — pendiente. Matriz visual de empates agrupados por grupo.
+
+> ⚠️ **Cambio de alcance respecto al enunciado original:** el PDF del enunciado especificaba elegir **un solo** subproyecto. El profesor comunicó posteriormente (verbalmente/fuera del PDF) que deben implementarse **los 5**, con igual peso. Este cambio está **pendiente de confirmación por escrito** — ver nota en `context/requirements.md`. Si en algún momento se recibe una corrección oficial que contradiga esto, `requirements.md` es la fuente de verdad a actualizar primero.
+
+Los 5 subproyectos **comparten una sola infraestructura de aplicación** (login/JWT, cliente HTTP, resiliencia, sistema de diseño) — no se duplica nada de eso 5 veces. Cada subproyecto solo aporta su propia capa `domain/` (lógica de cruce específica) y su propia vista en `ui/`.
 
 El valor del proyecto **no está en el diseño visual**, está en:
-1. La lógica de cruce de datos entre múltiples endpoints.
-2. El manejo robusto de errores HTTP (401, 429, 500) y de red.
-3. Un código que el estudiante pueda defender y explicar línea por línea en una defensa oral en vivo.
+1. La lógica de cruce de datos entre múltiples endpoints, distinta en cada uno de los 5 subproyectos.
+2. El manejo robusto de errores HTTP (401, 429, 500) y de red — incluyendo el **reto de resiliencia específico de cada subproyecto** (5 retos distintos, ver sección 10).
+3. Un código que el estudiante pueda defender y explicar línea por línea en una defensa oral en vivo, para cualquiera de los 5 que el profesor elija revisar.
 
-Consulta `context/requirements.md` para el detalle funcional completo, `context/DESIGN.md` para la dirección visual (dark UI, liquid glass, degradados animados, tipografía), y `context/api-reference.md` para los schemas JSON reales de cada endpoint (nombres de campo exactos, tipos de dato, casos borde). Este `CLAUDE.md` es la guía de **cómo construirlo**; los archivos de `/context` son el **qué construir**, **cómo debe verse** y **con qué datos exactos trabajar**.
+Consulta `context/requirements.md` para el detalle funcional completo de los 5 subproyectos, `context/DESIGN.md` para la dirección visual (dark UI, liquid glass, degradados animados, tipografía), y `context/api-reference.md` para los schemas JSON reales de cada endpoint (nombres de campo exactos, tipos de dato, casos borde — **`/get/groups` todavía no está documentado ahí, investigar antes de construir El Muro**). Este `CLAUDE.md` es la guía de **cómo construirlo**; los archivos de `/context` son el **qué construir**, **cómo debe verse** y **con qué datos exactos trabajar**.
 
 ---
 
@@ -69,7 +79,7 @@ proyecto-ruta-del-campeon/
 │   └── CLAUDE.md             → este archivo — ubicación soportada oficialmente para mantener la raíz del proyecto limpia
 ├── .gitignore
 ├── context/
-│   ├── requirements.md       → requerimientos funcionales y no funcionales del sistema
+│   ├── requirements.md       → requerimientos funcionales y no funcionales de los 5 subproyectos
 │   ├── DESIGN.md             → sistema de diseño: dark UI, liquid glass, degradados animados, tipografía
 │   └── api-reference.md      → schemas JSON reales de cada endpoint (campos exactos, tipos de dato, casos borde)
 ├── README.md                  → vacío por ahora; se completa al final, cuando el proyecto ya funcione (setup, cómo correrlo)
@@ -78,43 +88,49 @@ proyecto-ruta-del-campeon/
 ├── tailwind.config.js
 │
 └── src/
-    ├── main.js                → punto de entrada: inicializa la app, registra listeners raíz
+    ├── main.js                → punto de entrada: login gate, navegación entre los 5 subproyectos, wiring de callbacks de resiliencia
     │
     ├── styles/
     │   └── input.css          → directivas @tailwind (base/components/utilities)
     │
-    ├── api/                   → CAPA DE DATOS (solo fetch, nunca DOM)
-    │   ├── httpClient.js      → wrapper authFetch() + integración con backoff
-    │   ├── authApi.js         → POST /auth/authenticate (login usado por la app)
-    │   └── worldCupApi.js     → GET /get/teams, /get/games, /get/stadiums (los 3 juntos: mismo patrón, mismo cliente)
+    ├── api/                   → CAPA DE DATOS (solo fetch, nunca DOM) — compartida por los 5 subproyectos
+    │   ├── httpClient.js      → wrapper authFetch() + integración con backoff (usado por los 5)
+    │   ├── authApi.js         → POST /auth/authenticate (login usado por toda la app)
+    │   ├── worldCupApi.js     → GET /get/teams, /get/games, /get/stadiums (usados por 2.1, 2.2, 2.4, 2.5)
+    │   └── groupsApi.js       → GET /get/groups (solo 2.3, El Muro) — investigar schema antes de escribir
     │
-    ├── domain/                → LÓGICA DE NEGOCIO / CRUCE DE DATOS (sin fetch, sin DOM) — el corazón evaluado del subproyecto
-    │   └── itineraryService.js
-    │       - filtrar partidos por equipo (home/away)
-    │       - ordenar por local_date
-    │       - cruzar stadium_id → datos de estadio
-    │       - calcular ciudades distintas visitadas
+    ├── domain/                → LÓGICA DE NEGOCIO / CRUCE DE DATOS (sin fetch, sin DOM) — un archivo por subproyecto
+    │   ├── itineraryService.js       → 2.1 La Ruta del Campeón (✅ ya implementado)
+    │   ├── goalsService.js           → 2.2 Rastreador de Goleadas (RF-RG-01 a 06)
+    │   ├── wallService.js            → 2.3 El Muro (RF-EM-01 a 04)
+    │   ├── stadiumsAnalyticsService.js → 2.4 Analítica de Estadios (RF-AE-01 a 04)
+    │   └── drawsService.js           → 2.5 Radar de Empates (RF-RE-01 a 04)
     │
-    ├── state/                 → ESTADO Y PERSISTENCIA (sin DOM)
-    │   └── appState.js        → token/user (auth), caché por endpoint con timestamp, equipo seleccionado — todo el estado de la app en un solo módulo, con funciones bien nombradas por responsabilidad
+    ├── state/                 → ESTADO Y PERSISTENCIA (sin DOM) — compartido por los 5
+    │   └── appState.js        → token/user (auth), caché por endpoint con timestamp, subproyecto activo — todo el estado de la app en un solo módulo, con funciones bien nombradas por responsabilidad
     │
     ├── ui/                    → CAPA DE PRESENTACIÓN (solo DOM, nunca fetch)
-    │   ├── loginForm.js       → formulario de login (reutilizado en pantalla completa y en modal 401)
-    │   ├── accountMenu.js     → dropdown del ícono de cuenta (user info + logout)
-    │   ├── teamSelector.js    → poblar y manejar el <select> de equipos
-    │   ├── itineraryCards.js  → render de tarjetas + actualización parcial (ver 5.5 resiliencia)
-    │   ├── sessionExpiredModal.js → modal de reautenticación (401), envuelve loginForm.js
-    │   └── resilienceBanners.js   → los 3 estados en tiempo real agrupados: countdown 429, backoff 500, badge de caché — comparten patrón visual y de aparición/desaparición, tiene sentido que vivan juntos
+    │   ├── loginForm.js       → formulario de login — compartido (reutilizado en pantalla completa y en modal 401)
+    │   ├── accountMenu.js     → dropdown del ícono de cuenta — compartido
+    │   ├── projectMenu.js     → dropdown "Proyectos" para navegar entre los 5 subproyectos (nuevo, ver sección 6.1)
+    │   ├── sessionExpiredModal.js → modal de reautenticación (401), envuelve loginForm.js — compartido
+    │   ├── resilienceBanners.js   → banners en tiempo real (countdown 429, backoff 500, badge de caché) — compartido, con `source` namespaced por subproyecto+dataset
+    │   ├── teamSelector.js    → 2.1 selector de equipo
+    │   ├── itineraryCards.js  → 2.1 tarjetas de itinerario
+    │   ├── goalsList.js       → 2.2 lista de goleadas
+    │   ├── wallRanking.js     → 2.3 ranking de mejores defensas + próximo rival
+    │   ├── stadiumsChart.js   → 2.4 gráfica de barras (SVG/divs, sin librerías)
+    │   └── drawsMatrix.js     → 2.5 matriz visual de empates
     │
-    └── utils/                 → HELPERS PUROS (sin estado, sin DOM, sin fetch)
+    └── utils/                 → HELPERS PUROS (sin estado, sin DOM, sin fetch) — compartidos
         ├── backoff.js         → fetchWithBackoff(fetchFn, opciones)
-        └── format.js          → formateo de fechas, códigos de estadio/país y otros helpers de presentación
+        └── format.js          → formateo de fechas, ciudad/país y otros helpers de presentación
 ```
 
 **Fuera del árbol de `src/`, sin necesidad de carpetas dedicadas todavía:**
-- Assets estáticos (logo `.png`, favicon): ahora sí hay un archivo real que meter ahí (el logo WC26) — crear `public/` (o `assets/`) para esto. Íconos de Lucide **no** van aquí como archivos — se copian como SVG inline directo en el código (ver sección 2).
+- Assets estáticos (logo `.png`, favicon): ya insertados en `public/`. Íconos de Lucide **no** van aquí como archivos — se copian como SVG inline directo en el código (ver sección 2).
 - Salida de build de Tailwind (`dist/` o similar): la genera la herramienta de build; agregar a `.gitignore`, no versionar ni mantener manualmente en el árbol del proyecto.
-- `matchesView.js` (vista "Partidos"): **no crear todavía** — está pausado a futuro (ver RF-05b en `requirements.md`). Si se retoma, va en `ui/`.
+- `matchesView.js` (vista "Partidos" dentro de 2.1): sigue pausada/a futuro (ver RF-05b en `requirements.md`), sin relación con el cambio de alcance a 5 subproyectos — no confundir "Partidos" (opcional, descartado por ahora) con los 4 subproyectos nuevos (obligatorios).
 - Campana de historial (`notificationBell.js`): opcional; si se implementa, es un archivo más dentro de `ui/`, no antes de tener resuelto todo lo obligatorio.
 
 ### Reglas de dependencia entre capas (de arriba hacia abajo, nunca al revés)
@@ -138,7 +154,7 @@ Si Claude Code necesita ubicar un archivo nuevo y no encaja claramente en ningun
 
 ## 5. Arquitectura de resiliencia obligatoria
 
-Esta es la parte que más peso tiene en la evaluación y en la defensa oral. Debe implementarse de forma explícita y visible, no como un afterthought.
+Esta es la parte que más peso tiene en la evaluación y en la defensa oral. Debe implementarse de forma explícita y visible, no como un afterthought. Se construye **una sola vez** (5.1 a 5.4) y la comparten los 5 subproyectos; cada subproyecto además tiene su **propio** reto de resiliencia específico (5.5 es el de 2.1; los de 2.2-2.5 están en la sección 6.2).
 
 ### 5.1 Autenticación JWT y pantalla de login
 
@@ -176,7 +192,7 @@ El registro se hace una sola vez (fuera de la app, vía Swagger/curl). La app **
 - Cada respuesta exitosa de `/get/teams`, `/get/games`, `/get/stadiums` se cachea en `localStorage` con una key clara (ej. `cache:teams`, `cache:games`, `cache:stadiums`) y timestamp.
 - Si una petición nueva falla (después de agotar los reintentos de backoff) y existe copia cacheada, mostrar esos datos con un indicador visible tipo "⚠️ Datos no actualizados (última sincronización: hh:mm)".
 
-### 5.5 Reto de resiliencia específico de este subproyecto
+### 5.5 Reto de resiliencia específico de 2.1 (La Ruta del Campeón)
 > Si `/get/stadiums` falla **después** de que el itinerario ya se renderizó con los partidos:
 > - Las tarjetas de partidos ya renderizadas **permanecen visibles**, no se destruyen ni se re-renderiza todo desde cero.
 > - Solo el campo de estadio en las tarjetas afectadas cambia a **"Estadio no disponible"**.
@@ -204,20 +220,40 @@ Los nombres de campo exactos, tipos de dato y casos borde de cada endpoint (`tea
 
 ### 6.1 Navegación de la app
 
-Navbar **actual** (versión a construir ahora):
+Navbar con **dropdown "Proyectos"** en vez de pestañas sueltas (5 nombres completos no caben en una fila):
 
 | Elemento | Contenido | Endpoints |
 |---|---|---|
-| **Logo WC26** | Archivo `.png` estático (`<img>`), insertado cuando el usuario lo provea — mientras tanto, placeholder simple (no generar ni replicar el logo de FIFA) | — |
-| **Itinerarios** | Única sección funcional: selector de equipo + tarjetas de itinerario + contador de ciudades | `/get/teams`, `/get/games`, `/get/stadiums` |
-| **Ícono de campana** (opcional) | Historial de eventos de resiliencia recientes (429, offline) — complementa, no reemplaza los chips en tiempo real | ninguno adicional |
-| **Ícono de cuenta** | Dropdown con nombre/email del `user` (obtenido en el login) + chip "Sesión activa" + botón "Cerrar sesión". **Nunca mostrar términos técnicos** (JWT, Bearer token, etc.) en este dropdown — son detalles de implementación, no información para el usuario final | ninguno adicional — usa datos ya en memoria |
+| **Logo** | Archivo `.png` propio (`public/logo.png`), ya implementado | — |
+| **Dropdown "Proyectos"** | Al desplegar: los 5 subproyectos por su **nombre oficial del catálogo**, sin abreviar (La Ruta del Campeón, Rastreador de Goleadas, El Muro, Analítica de Estadios, Radar de Empates). Mismo patrón visual que `accountMenu.js` | según el subproyecto elegido |
+| **Ícono de campana** (opcional) | Historial de eventos de resiliencia recientes — complementa, no reemplaza los chips en tiempo real | ninguno adicional |
+| **Ícono de cuenta** | Dropdown con nombre/email del `user` + chip "Sesión activa" + botón "Cerrar sesión". **Nunca mostrar términos técnicos** (JWT, Bearer token, etc.) | ninguno adicional |
 
-**"Partidos" (calendario completo) queda pausado / a futuro.** No aparece en el enunciado, no es parte del alcance evaluado. Está documentado como RF-05b (opcional) en `requirements.md` solo como referencia por si se retoma después de que todo lo obligatorio esté sólido. **No construirlo ahora** — no agregar el ítem a la navbar ni el componente `matchesView.js` hasta indicación explícita.
+**"Partidos"** (vista opcional dentro de 2.1) sigue pausada — no confundir con los 4 subproyectos nuevos, que sí son obligatorios.
 
-**No agregar una sección "Standings"** (tabla de posiciones): requeriría `GET /get/groups`, que pertenece a otro subproyecto de la Categoría A ("El Muro") y está fuera del alcance evaluado aquí. Si se sugiere, redirigir a Itinerarios.
+> **Regla obligatoria — countdown/offline en tiempo real:** el countdown de 429 (RF-09) y el indicador de datos cacheados (RF-10) deben aparecer automáticamente en pantalla apenas ocurre el estado, **sin requerir que el usuario abra nada**, en los 5 subproyectos por igual.
 
-> **Regla obligatoria — countdown/offline en tiempo real:** el countdown de 429 (RF-09) y el indicador de datos cacheados (RF-10) deben aparecer automáticamente en pantalla (chip/banner flotante) apenas ocurre el estado, **sin requerir que el usuario abra nada**. No implementarlos únicamente detrás del ícono de campana — eso no cumple el requisito de "visible" del enunciado y es un riesgo directo en la defensa oral.
+---
+
+## 6.2 Subproyectos 2.2 a 2.5 — notas de implementación para Claude Code
+
+Detalle funcional completo en `context/requirements.md` secciones 9-12. Aquí solo las notas técnicas que no están en el enunciado y que ya se descubrieron trabajando con esta API real (ver `context/api-reference.md`):
+
+### 2.2 Rastreador de Goleadas
+- `home_score`, `away_score`, `finished` llegan como **string** en `/get/games` — convertir antes de operar (`Number(...)`, comparar `=== "TRUE"` no `=== true`).
+- El reto de resiliencia (RF-RG-R) requiere que `goalsService.js` pueda construir la lista **sin** datos de `teams` (usando ids como placeholder) y luego **re-cruzar** cuando `teams` llegue tarde — diseñar la función de cruce para que sea llamable dos veces sobre el mismo resultado base, no solo una vez al inicio.
+
+### 2.3 El Muro
+- **Antes de escribir código:** investigar el schema real de `/get/groups` (nombres de campo, si `ga` es string o número, cómo vienen los equipos anidados dentro de cada grupo) — no asumir nada, seguir el mismo método de verificación empírica que se usó para `teams`/`games`/`stadiums` (curl/fetch directo + inspección de la respuesta real).
+- El reto de resiliencia (RF-EM-R) implica 5 búsquedas de "próximo rival" independientes — cada una debe manejar su propio fallo sin bloquear las otras 4. Esto es distinto a RF-11 (que es 1 sola petición fallando): aquí son 5 peticiones/cálculos paralelos, cada uno con su propio estado de éxito/fallo por equipo.
+
+### 2.4 Analítica de Estadios
+- La gráfica de barras debe construirse sin librerías (prohibidas, ver sección 2) — usar `<div>` con `height`/`width` calculado en JS a partir del valor máximo del dataset (normalizar a un % del contenedor), o SVG con `<rect>` generados dinámicamente. Debe seguir el lenguaje visual de `context/DESIGN.md` (glass, paleta de acento), no un gráfico genérico de librería.
+- El reto de resiliencia (RF-AE-R) depende de **orden**: estadios deben cargar primero para que las barras existan antes de que games pueda fallar — si se piden en paralelo sin control de orden, este escenario podría no ser reproducible de forma confiable para la demo. Considerar si conviene pedir `stadiums` y `games` de forma controlada (no necesariamente secuencial estricta, pero sí con manejo explícito de qué pasa si uno resuelve mucho antes que el otro).
+
+### 2.5 Radar de Empates
+- Igual que 2.2, cuidado con tipos string en `home_score`/`away_score`/`finished`.
+- El reto de resiliencia (RF-RE-R) menciona explícitamente "mientras se está construyendo la matriz grupo por grupo" — esto sugiere que el render debe ser incremental (grupo A, luego B, luego C...), no un solo cálculo que arma toda la matriz de golpe. Diseñar `drawsMatrix.js` para pintar de forma progresiva por grupo, de modo que un 429 a mitad de camino deje ver los grupos ya pintados, consistente con el patrón de actualización parcial ya usado en RF-11.
 
 ---
 
@@ -243,26 +279,41 @@ Navbar **actual** (versión a construir ahora):
 
 ---
 
-## 9. Criterio de éxito funcional (checklist rápido)
+## 9. Criterio de éxito funcional (checklist)
 
-- [ ] Pantalla de login (email/password) como puerta de entrada si no hay token válido.
-- [ ] Login llama a `POST /auth/authenticate`; modal de 401 reutiliza el mismo componente.
-- [ ] Navbar con logo WC26 (placeholder) | Itinerarios | 🔔 opcional | ícono de cuenta (sin "Partidos" por ahora).
-- [ ] Íconos Lucide usados como SVG inline copiado (no el paquete npm ni el script CDN de Lucide).
-- [ ] Dropdown de cuenta sin jerga técnica visible (nada de "JWT"/"Bearer token").
-- [ ] Selector con 48 equipos desde `/get/teams`.
-- [ ] Filtro de partidos por equipo (home o away), ordenado por `local_date`.
-- [ ] Nombres completos de equipos en todas partes (ej. "México vs Polonia"), nunca códigos de 3 letras (ej. "MEX vs POL").
-- [ ] Cruce con `/get/stadiums` mostrando: nombre completo del estadio, ciudad + país en línea separada (texto explícito, ej. "Monterrey, México"), y aforo. Nada de códigos/abreviaciones sin desplegar.
-- [ ] Grupo del partido (`group`, de `/get/games`) mostrado en la tarjeta — no requiere `/get/groups`.
-- [ ] Render como tarjetas de itinerario (no tabla).
-- [ ] Contador de ciudades distintas visitadas.
-- [ ] JWT en header `Authorization` en toda petición a `/get/*`.
-- [ ] 100% `async/await`, cero `.then/.catch` en el repo.
-- [ ] 401 → limpia token + modal de reautenticación (mismo form de login), sin reload.
-- [ ] 429/500 → backoff exponencial por petición; countdown visible **en tiempo real, sin abrir nada**.
-- [ ] Caché en `localStorage` + indicador de datos no actualizados **en tiempo real, sin abrir nada**.
-- [ ] Fallo aislado de `/get/stadiums` no destruye tarjetas ya renderizadas.
-- [ ] Cero `alert()` en todo el código.
-- [ ] Separación clara `/api`, `/state`, `/ui`.
-- [ ] Sin sección "Standings" ni llamadas a `/get/groups`.
+### 2.1 La Ruta del Campeón — ✅ ya implementado y verificado (no repetir esta lista, solo referencia)
+- [x] Login, JWT, arquitectura de resiliencia completa (401/429/500/offline), RF-01 a RF-05, RF-11, accesibilidad, hover, logo.
+
+### Infraestructura compartida (una sola vez, ya construida — reutilizar para 2.2-2.5)
+- [x] `httpClient.js`, `backoff.js`, `resilienceBanners.js`, `loginForm.js`, `sessionExpiredModal.js`, `accountMenu.js`.
+- [ ] `projectMenu.js` (dropdown "Proyectos") — nuevo, pendiente.
+- [ ] `groupsApi.js` (`/get/groups`) — nuevo, pendiente, solo para 2.3.
+
+### 2.2 Rastreador de Goleadas — pendiente
+- [ ] Filtrar `finished` (string) → diferencia de goles (convertir a número) ≥ 3 → ordenar desc.
+- [ ] Cruce con `/get/teams` para nombre/bandera reales, nunca id crudo (salvo degradación).
+- [ ] Contador total en cabecera.
+- [ ] RF-RG-R: si falla `/get/teams`, renderiza igual con ids, reintenta en segundo plano, actualiza sola al recuperar.
+
+### 2.3 El Muro — pendiente
+- [ ] Investigar schema real de `/get/groups` antes de escribir código (documentar en `api-reference.md`).
+- [ ] Extraer `team_id`+`ga` de los 12 grupos → unificar 48 registros → ordenar asc por `ga`.
+- [ ] Top 5 cruzado con `/get/teams`.
+- [ ] Próximo rival de cada uno de los 5 (búsqueda independiente por equipo).
+- [ ] RF-EM-R: fallo aislado por equipo (1 de 5) no bloquea los otros 4.
+
+### 2.4 Analítica de Estadios — pendiente
+- [ ] Conteo de partidos por estadio + asistencia potencial (`capacity` × partidos) → ordenar desc.
+- [ ] Gráfica de barras construida a mano (SVG/divs), sin librerías.
+- [ ] RF-AE-R: si `games` falla después de que `stadiums` ya cargó, estado "esperando datos de partidos" sin destruir barras ya dibujadas.
+
+### 2.5 Radar de Empates — pendiente
+- [ ] Filtrar empates (`home_score === away_score`, `finished`, cuidado con tipos string) → agrupar por `group` (A-L).
+- [ ] Matriz visual con equipos cruzados contra `/get/teams`.
+- [ ] Contador de empates por grupo.
+- [ ] RF-RE-R: 429 durante construcción incremental de la matriz solo bloquea el grupo pendiente; grupos ya dibujados persisten.
+
+### Reglas globales, válidas para los 5 (recordatorio)
+- [ ] Cero `alert()`, cero `.then()/.catch()`, cero `window.location.reload()` en todo el repo, en los 5 subproyectos.
+- [ ] Cada subproyecto maneja 401/429/500/offline con la misma infraestructura compartida, sin duplicar lógica.
+- [ ] Nombres completos de equipos en todas partes, nunca códigos/ids crudos (salvo degradación explícita documentada).
