@@ -5,7 +5,7 @@ import { renderNavbar } from './ui/navbar.js';
 import { renderTeamSelector } from './ui/teamSelector.js';
 import { renderItineraryCards, markStadiumsUnavailableForCards } from './ui/itineraryCards.js';
 import { renderGoalsList, patchTeamNamesForCards } from './ui/goalsList.js';
-import { renderStadiumsChart } from './ui/stadiumsChart.js';
+import { renderStadiumsChart, markGamesUnavailableForStadiumsChart } from './ui/stadiumsChart.js';
 import { showSessionExpiredModal } from './ui/sessionExpiredModal.js';
 import { mountDevToolsPanel } from './ui/devToolsPanel.js';
 import {
@@ -25,11 +25,12 @@ import {
   simulateServerError,
   simulateStadiumsFailureAfterRender,
   simulateTeamsFailureAfterGamesResolved,
+  simulateGamesFailureAfterStadiumsResolved,
   simulateSessionExpired,
 } from './api/worldCupApi.js';
 import { buildItinerary } from './domain/itineraryService.js';
 import { buildGoalsList, reconcileGoalsListWithTeams } from './domain/goalsService.js';
-import { buildStadiumsAnalytics } from './domain/stadiumsAnalyticsService.js';
+import { buildStadiumsAnalytics, buildStadiumsBaseline } from './domain/stadiumsAnalyticsService.js';
 import { PROJECTS } from './ui/projectMenu.js';
 
 // worldCupApi.js no conoce la UI: main.js inyecta estos callbacks (RF-09/RF-10)
@@ -84,6 +85,15 @@ mountDevToolsPanel({
       renderRastreadorDeGoleadas(app.querySelector('#view-slot'));
     }
   },
+  triggerFalloPartidosEstadios: async () => {
+    const chartSlot = app.querySelector('#stadiums-chart-slot');
+    if (!chartSlot) return;
+    try {
+      await simulateGamesFailureAfterStadiumsResolved(banners);
+    } catch (error) {
+      markGamesUnavailableForStadiumsChart(chartSlot);
+    }
+  },
 });
 
 // Vista activa entre los 5 subproyectos (sin librería de router, switch de estado + render condicional).
@@ -120,45 +130,62 @@ const obtenerTeamsYGames = async () => {
 
 // stadiums/games se comparten con la infraestructura ya en memoria (2.1 puede haber pedido
 // stadiums, 2.1/2.2 pueden haber pedido games) para no duplicar peticiones ya resueltas.
-let stadiumsYGamesEnMemoria = null;
+let stadiumsEnMemoria = null;
+let gamesParaAnaliticaEnMemoria = null;
 
-const obtenerStadiumsYGames = async () => {
-  if (stadiumsYGamesEnMemoria) return stadiumsYGamesEnMemoria;
-
-  const gamesPromise = teamsYGamesEnMemoria ? Promise.resolve(teamsYGamesEnMemoria.games) : getGames(banners);
-  const [stadiums, games] = await Promise.all([getStadiums(banners), gamesPromise]);
-
-  if (!Array.isArray(stadiums) || !Array.isArray(games)) {
-    console.error('Respuesta inesperada de la API (se esperaba un array):', { stadiums, games });
-    throw new Error('Respuesta inesperada de stadiums/games');
-  }
-
-  stadiumsYGamesEnMemoria = { stadiums, games };
-  return stadiumsYGamesEnMemoria;
-};
-
+// RF-AE-R (requirements.md 11): stadiums y games se piden en orden controlado, no en
+// Promise.all — si games fallara sin que stadiums ya haya resuelto, no habría barras que
+// preservar. Al pedir stadiums primero y renderizar sus barras de aforo (RF-AE-01/02
+// pendientes de conteo) antes de tocar games, un fallo posterior de games nunca puede
+// destruir lo ya dibujado: solo actualiza la fila de partidos vía
+// markGamesUnavailableForStadiumsChart, sin re-renderizar la grilla completa.
 const renderAnaliticaDeEstadios = async (container) => {
   container.innerHTML = '<div id="stadiums-chart-slot"></div>';
   const chartSlot = container.querySelector('#stadiums-chart-slot');
 
   let stadiums;
-  let games;
-
   try {
-    ({ stadiums, games } = await obtenerStadiumsYGames());
+    stadiums = stadiumsEnMemoria ?? (await getStadiums(banners));
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       manejarSesionExpirada();
       return;
     }
-    console.error('Fallo al cargar stadiums/games (sin caché disponible):', error);
+    console.error('Fallo al cargar stadiums (sin caché disponible):', error);
     clearAuth();
     renderLoginScreen(app, { onSuccess: iniciarApp });
     return;
   }
+  if (!Array.isArray(stadiums)) {
+    console.error('Respuesta inesperada de la API (se esperaba un array):', { stadiums });
+    clearAuth();
+    renderLoginScreen(app, { onSuccess: iniciarApp });
+    return;
+  }
+  stadiumsEnMemoria = stadiums;
 
-  const analytics = buildStadiumsAnalytics(stadiums, games);
-  renderStadiumsChart(chartSlot, analytics);
+  renderStadiumsChart(chartSlot, buildStadiumsBaseline(stadiums));
+
+  let games;
+  try {
+    games = gamesParaAnaliticaEnMemoria ?? teamsYGamesEnMemoria?.games ?? (await getGames(banners));
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      manejarSesionExpirada();
+      return;
+    }
+    console.error('Fallo al cargar games (barras de estadios ya renderizadas, se conservan):', error);
+    markGamesUnavailableForStadiumsChart(chartSlot);
+    return;
+  }
+  if (!Array.isArray(games)) {
+    console.error('Respuesta inesperada de la API (se esperaba un array):', { games });
+    markGamesUnavailableForStadiumsChart(chartSlot);
+    return;
+  }
+  gamesParaAnaliticaEnMemoria = games;
+
+  renderStadiumsChart(chartSlot, buildStadiumsAnalytics(stadiums, games));
 };
 
 const renderRutaDelCampeon = async (container) => {

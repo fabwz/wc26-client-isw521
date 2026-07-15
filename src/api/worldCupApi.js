@@ -205,6 +205,26 @@ export const simulateTeamsFailureAfterGamesResolved = async (banners) => {
   }
 };
 
+// SOLO DESARROLLO. Reto RF-AE-R (requirements.md 11): fuerza que /get/games falle DESPUÉS
+// de que /get/stadiums ya resolvió y las barras de aforo ya se dibujaron. Igual que
+// simulateStadiumsFailureAfterRender, SIEMPRE propaga el error (nunca cae a caché) para que
+// main.js aplique markGamesUnavailableForStadiumsChart sobre las barras ya renderizadas.
+// Para quitarlo: borrar esta función, el import de mountDevGamesFailureSimulator y sus líneas en main.js.
+export const simulateGamesFailureAfterStadiumsResolved = async (banners) => {
+  if (!import.meta.env.DEV) return;
+  try {
+    await conBackoffVisible('games', () => fetchSimulatedError(500), banners);
+  } catch (error) {
+    banners.hideRateLimitBanner('games');
+    banners.hideServerErrorBanner('games');
+    console.debug('[resiliencia][DEV] simulación RF-AE-R — /get/games falló con /get/stadiums ya resuelto', {
+      nombre: error.name,
+      status: error.status,
+    });
+    throw error;
+  }
+};
+
 // SOLO DESARROLLO. Fetch real a /dev-mock/401 para que clasificarRespuesta
 // construya el ApiError(401) real (visible en Network) en vez de simularlo a mano.
 // Para quitarlo: borrar esta función, el import de mountDevSessionSimulator y su línea en main.js.

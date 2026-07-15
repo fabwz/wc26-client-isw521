@@ -5,11 +5,13 @@
 //   T → 429 (recupera al 3er intento)      S → 500 (servidor)
 //   D → RF-11  fallo estadios (2.1 La Ruta del Campeón)
 //   G → RF-RG-R fallo equipos (2.2 Rastreador de Goleadas)
+//   A → RF-AE-R fallo partidos (2.4 Analítica de Estadios, "Analítica")
 import { mountDevSessionSimulator } from './devSessionSimulator.js';
 import { mountDevRateLimitSimulator } from './devRateLimitSimulator.js';
 import { mountDevServerErrorSimulator } from './devServerErrorSimulator.js';
 import { mountDevStadiumsFailureSimulator } from './devStadiumsFailureSimulator.js';
 import { mountDevTeamsFailureSimulator } from './devTeamsFailureSimulator.js';
+import { mountDevGamesFailureSimulator } from './devGamesFailureSimulator.js';
 
 export const mountDevToolsPanel = ({
   trigger401,
@@ -18,6 +20,7 @@ export const mountDevToolsPanel = ({
   trigger500,
   triggerFalloEstadios,
   triggerFalloEquipos,
+  triggerFalloPartidosEstadios,
 }) => {
   if (!import.meta.env.DEV) return;
 
@@ -100,4 +103,5 @@ export const mountDevToolsPanel = ({
 
   mountDevStadiumsFailureSimulator(triggerFalloEstadios, panel);
   mountDevTeamsFailureSimulator(triggerFalloEquipos, panel);
+  mountDevGamesFailureSimulator(triggerFalloPartidosEstadios, panel);
 };
