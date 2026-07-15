@@ -35,7 +35,7 @@ El foco de cada subproyecto está en la **lógica de cruce de datos** específic
 | `GET /get/teams` | 2.1, 2.2, 2.3, 2.5 |
 | `GET /get/games` | 2.1, 2.2, 2.3, 2.4, 2.5 |
 | `GET /get/stadiums` | 2.1, 2.4 |
-| `GET /get/groups` | 2.3 (El Muro) — **nuevo, no documentado aún en `context/api-reference.md`; requiere investigación de schema antes de implementar 2.3** |
+| `GET /get/groups` | 2.3 (El Muro) — schema confirmado en `context/api-reference.md` |
 
 Todas las peticiones a **endpoints de datos** (`/get/*`) deben incluir el encabezado:
 ```
@@ -185,7 +185,7 @@ No se incluye una sección "Standings" genérica adicional — El Muro (2.3) ya 
 **Objetivo técnico:** combinar datos agregados (`/get/groups`) con datos de detalle (`/get/games`) para construir un ranking compuesto.
 **Endpoints:** `/get/groups`, `/get/teams`, `/get/games`.
 
-> ⚠️ **Pendiente de investigación:** el schema exacto de `/get/groups` (nombres de campo, tipos de dato, si `ga` es string o número, estructura anidada de equipos dentro de cada grupo) no está documentado todavía en `context/api-reference.md`. Debe confirmarse empíricamente (igual que se hizo con `teams`/`games`/`stadiums`) **antes** de escribir el código de cruce, para no asumir nombres de campo incorrectos.
+> ✅ **Schema confirmado** (ver `context/api-reference.md`): la respuesta viene como `{ "groups": [...] }` (no array directo), cada grupo trae `name` (letra) y `teams` (array de 4 con `team_id`, `ga`, etc., todos como string). **El orden del array `teams` no refleja el ranking** — verificado con datos reales, hay que calcular el orden explícitamente en el cliente.
 
 ### RF-EM-01 — Extraer goles en contra por equipo
 - Recorrer los 12 grupos de `/get/groups` y extraer, de cada equipo dentro de cada grupo, su `team_id` y su valor `ga` (goles en contra).

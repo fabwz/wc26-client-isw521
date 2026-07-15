@@ -129,7 +129,29 @@ Requiere `Authorization: Bearer <token>`. Devuelve un array de 16 estadios.
 
 ---
 
-## Notas operativas de la API
+## `GET /get/groups`
+Requiere `Authorization: Bearer <token>`. ⚠️ **A diferencia de `teams`/`games`/`stadiums`, la respuesta NO es un array directo** — viene envuelta en un objeto: `{ "groups": [...] }` (12 grupos). Acceder a `respuesta.groups`, no asumir que la respuesta misma es el array.
+
+```json
+{
+  "_id": "698985a46e8cb0bf61b5ac9e",
+  "name": "H",
+  "teams": [
+    { "team_id": "29", "mp": "3", "w": "2", "l": "0", "d": "1", "pts": "7", "gf": "5", "ga": "0", "gd": "5", "_id": "698985a46e8cb0bf61b5ac9f" },
+    { "team_id": "30", "mp": "3", "w": "0", "l": "0", "d": "3", "pts": "3", "gf": "2", "ga": "2", "gd": "0", "_id": "698985a46e8cb0bf61b5aca0" }
+  ],
+  "createdAt": "2026-02-09T06:58:44.378Z",
+  "__v": 0,
+  "updatedAt": "2026-06-27T02:02:41.121Z"
+}
+```
+
+**Campos a usar en la app (RF-EM-01 a RF-EM-04):**
+- `name` → letra del grupo (ej. `"A"`, `"H"`) — equivalente a `group` en `games`, pero aquí se llama `name`.
+- `teams` (dentro del grupo) → array de 4 equipos con sus estadísticas. Cada uno trae: `team_id`, `mp` (jugados), `w` (ganados), `l` (perdidos), `d` (empatados), `pts` (puntos), `gf` (goles a favor), `ga` (**goles en contra** — el campo que pide RF-EM-01), `gd` (diferencia de gol), y un `_id` propio de Mongo (distinto al `_id` del grupo, no confundir).
+- Todos los campos numéricos (`mp`, `w`, `l`, `d`, `pts`, `gf`, `ga`, `gd`) llegan como **string** — convertir antes de ordenar/comparar (mismo patrón que `home_score`/`away_score` en `games`).
+- ⚠️ **El orden del array `teams` NO refleja el ranking/posición dentro del grupo** — verificado empíricamente: en un grupo, el equipo con más puntos (7 pts) aparece en la posición 2 del array, no en la 1. Cualquier ranking (incluyendo el ordenamiento ascendente por `ga` que pide RF-EM-02) debe calcularse explícitamente en el cliente — nunca asumir que `teams[0]` es el líder o el mejor en ningún criterio.
+- `_id`, `createdAt`, `updatedAt`, `__v` → metadatos de Mongo, no se usan en el proyecto.
 
 - **Rate limit público:** 120 peticiones por ventana de 60 segundos en endpoints `/get/*`. Superarlo devuelve `429`. Útil para saber cuánto hay que insistir para provocar el 429 en la demo de la defensa (recargar rápido varias veces suele bastar).
 - **Caché interno de la API:** confirmado con headers reales — `Cache-Control: public, max-age=30, stale-while-revalidate=30`. Peticiones idénticas (misma URL) dentro de esa ventana de 30s se sirven desde caché (`X-Cache: HIT`) **sin contar contra el rate limit** (`RateLimit-Remaining` casi no baja). **Para provocar un 429 real en pruebas**, hay que romper la caché agregando un parámetro random/timestamp a cada petición (ej. `?_=${Date.now()}_${i}`), de lo contrario un loop de peticiones repetidas idénticas no dispara el límite aunque se manden cientos.

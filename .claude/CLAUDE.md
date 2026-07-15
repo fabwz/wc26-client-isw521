@@ -23,7 +23,7 @@ El valor del proyecto **no está en el diseño visual**, está en:
 2. El manejo robusto de errores HTTP (401, 429, 500) y de red — incluyendo el **reto de resiliencia específico de cada subproyecto** (5 retos distintos, ver sección 10).
 3. Un código que el estudiante pueda defender y explicar línea por línea en una defensa oral en vivo, para cualquiera de los 5 que el profesor elija revisar.
 
-Consulta `context/requirements.md` para el detalle funcional completo de los 5 subproyectos, `context/DESIGN.md` para la dirección visual (dark UI, liquid glass, degradados animados, tipografía), y `context/api-reference.md` para los schemas JSON reales de cada endpoint (nombres de campo exactos, tipos de dato, casos borde — **`/get/groups` todavía no está documentado ahí, investigar antes de construir El Muro**). Este `CLAUDE.md` es la guía de **cómo construirlo**; los archivos de `/context` son el **qué construir**, **cómo debe verse** y **con qué datos exactos trabajar**.
+Consulta `context/requirements.md` para el detalle funcional completo de los 5 subproyectos, `context/DESIGN.md` para la dirección visual (dark UI, liquid glass, degradados animados, tipografía), y `context/api-reference.md` para los schemas JSON reales de cada endpoint (nombres de campo exactos, tipos de dato, casos borde — **incluyendo `/get/groups`, ya documentado**: la respuesta viene envuelta en `{ "groups": [...] }`, no como array directo, y el orden del array `teams` dentro de cada grupo no refleja el ranking). Este `CLAUDE.md` es la guía de **cómo construirlo**; los archivos de `/context` son el **qué construir**, **cómo debe verse** y **con qué datos exactos trabajar**.
 
 ---
 
@@ -97,7 +97,7 @@ proyecto-ruta-del-campeon/
     │   ├── httpClient.js      → wrapper authFetch() + integración con backoff (usado por los 5)
     │   ├── authApi.js         → POST /auth/authenticate (login usado por toda la app)
     │   ├── worldCupApi.js     → GET /get/teams, /get/games, /get/stadiums (usados por 2.1, 2.2, 2.4, 2.5)
-    │   └── groupsApi.js       → GET /get/groups (solo 2.3, El Muro) — investigar schema antes de escribir
+    │   └── groupsApi.js       → GET /get/groups (solo 2.3, El Muro) — respuesta envuelta en { groups: [...] }, no array directo (ver api-reference.md)
     │
     ├── domain/                → LÓGICA DE NEGOCIO / CRUCE DE DATOS (sin fetch, sin DOM) — un archivo por subproyecto
     │   ├── itineraryService.js       → 2.1 La Ruta del Campeón (✅ ya implementado)
@@ -244,7 +244,7 @@ Detalle funcional completo en `context/requirements.md` secciones 9-12. Aquí so
 - El reto de resiliencia (RF-RG-R) requiere que `goalsService.js` pueda construir la lista **sin** datos de `teams` (usando ids como placeholder) y luego **re-cruzar** cuando `teams` llegue tarde — diseñar la función de cruce para que sea llamable dos veces sobre el mismo resultado base, no solo una vez al inicio.
 
 ### 2.3 El Muro
-- **Antes de escribir código:** investigar el schema real de `/get/groups` (nombres de campo, si `ga` es string o número, cómo vienen los equipos anidados dentro de cada grupo) — no asumir nada, seguir el mismo método de verificación empírica que se usó para `teams`/`games`/`stadiums` (curl/fetch directo + inspección de la respuesta real).
+- **Schema confirmado** (ver `context/api-reference.md`): respuesta envuelta en `{ "groups": [...] }` (⚠️ no un array directo como los otros 3 endpoints). Cada grupo trae `name` (letra) y `teams` (array de 4, con `team_id`, `ga`, `pts`, `gf`, `gd`, etc., todos como **string**). **El orden del array `teams` no refleja el ranking** — verificado con datos reales (un equipo con 7 pts apareció en la posición 2, no la 1) — calcular el orden explícitamente en `wallService.js`, nunca asumir `teams[0]` como el líder.
 - El reto de resiliencia (RF-EM-R) implica 5 búsquedas de "próximo rival" independientes — cada una debe manejar su propio fallo sin bloquear las otras 4. Esto es distinto a RF-11 (que es 1 sola petición fallando): aquí son 5 peticiones/cálculos paralelos, cada uno con su propio estado de éxito/fallo por equipo.
 
 ### 2.4 Analítica de Estadios
@@ -296,7 +296,7 @@ Detalle funcional completo en `context/requirements.md` secciones 9-12. Aquí so
 - [ ] RF-RG-R: si falla `/get/teams`, renderiza igual con ids, reintenta en segundo plano, actualiza sola al recuperar.
 
 ### 2.3 El Muro — pendiente
-- [ ] Investigar schema real de `/get/groups` antes de escribir código (documentar en `api-reference.md`).
+- [x] Schema real de `/get/groups` confirmado y documentado en `api-reference.md`.
 - [ ] Extraer `team_id`+`ga` de los 12 grupos → unificar 48 registros → ordenar asc por `ga`.
 - [ ] Top 5 cruzado con `/get/teams`.
 - [ ] Próximo rival de cada uno de los 5 (búsqueda independiente por equipo).
