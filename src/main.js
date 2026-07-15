@@ -4,6 +4,7 @@ import { renderLoginScreen } from './ui/loginForm.js';
 import { renderNavbar } from './ui/navbar.js';
 import { renderTeamSelector } from './ui/teamSelector.js';
 import { renderItineraryCards, markStadiumsUnavailableForCards } from './ui/itineraryCards.js';
+import { renderGoalsList } from './ui/goalsList.js';
 import { showSessionExpiredModal } from './ui/sessionExpiredModal.js';
 import { mountDevToolsPanel } from './ui/devToolsPanel.js';
 import {
@@ -25,6 +26,7 @@ import {
   simulateSessionExpired,
 } from './api/worldCupApi.js';
 import { buildItinerary } from './domain/itineraryService.js';
+import { buildGoalsList } from './domain/goalsService.js';
 import { PROJECTS } from './ui/projectMenu.js';
 
 // worldCupApi.js no conoce la UI: main.js inyecta estos callbacks (RF-09/RF-10)
@@ -84,6 +86,25 @@ const renderVistaEnConstruccion = (container, proyectoId) => {
   `;
 };
 
+// teams/games se comparten entre subproyectos (2.1 y 2.2 por ahora) para no duplicar la petición
+// si ya están en memoria desde la infraestructura compartida.
+let teamsYGamesEnMemoria = null;
+
+const obtenerTeamsYGames = async () => {
+  if (teamsYGamesEnMemoria) return teamsYGamesEnMemoria;
+
+  const [teams, games] = await Promise.all([getTeams(banners), getGames(banners)]);
+
+  // La API puede devolver 200 con un cuerpo que no es el array esperado (token corrupto no rechazado con 401).
+  if (!Array.isArray(teams) || !Array.isArray(games)) {
+    console.error('Respuesta inesperada de la API (se esperaba un array):', { teams, games });
+    throw new Error('Respuesta inesperada de teams/games');
+  }
+
+  teamsYGamesEnMemoria = { teams, games };
+  return teamsYGamesEnMemoria;
+};
+
 const renderRutaDelCampeon = async (container) => {
   container.innerHTML = `
     <div id="team-selector-slot" class="max-w-xs"></div>
@@ -97,21 +118,13 @@ const renderRutaDelCampeon = async (container) => {
   let games;
 
   try {
-    [teams, games] = await Promise.all([getTeams(banners), getGames(banners)]);
+    ({ teams, games } = await obtenerTeamsYGames());
   } catch (error) {
     if (error instanceof ApiError && error.status === 401) {
       manejarSesionExpirada();
       return;
     }
     console.error('Fallo al cargar teams/games (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
-    return;
-  }
-
-  // La API puede devolver 200 con un cuerpo que no es el array esperado (token corrupto no rechazado con 401).
-  if (!Array.isArray(teams) || !Array.isArray(games)) {
-    console.error('Respuesta inesperada de la API (se esperaba un array):', { teams, games });
     clearAuth();
     renderLoginScreen(app, { onSuccess: iniciarApp });
     return;
@@ -140,9 +153,35 @@ const renderRutaDelCampeon = async (container) => {
   });
 };
 
+const renderRastreadorDeGoleadas = async (container) => {
+  container.innerHTML = '<div id="goals-slot"></div>';
+  const goalsSlot = container.querySelector('#goals-slot');
+
+  let teams;
+  let games;
+
+  try {
+    ({ teams, games } = await obtenerTeamsYGames());
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      manejarSesionExpirada();
+      return;
+    }
+    console.error('Fallo al cargar teams/games (sin caché disponible):', error);
+    clearAuth();
+    renderLoginScreen(app, { onSuccess: iniciarApp });
+    return;
+  }
+
+  const goleadas = buildGoalsList(games, teams);
+  renderGoalsList(goalsSlot, goleadas);
+};
+
 const renderVistaActiva = async (viewSlot) => {
   if (vistaActiva === 'ruta-del-campeon') {
     await renderRutaDelCampeon(viewSlot);
+  } else if (vistaActiva === 'rastreador-de-goleadas') {
+    await renderRastreadorDeGoleadas(viewSlot);
   } else {
     renderVistaEnConstruccion(viewSlot, vistaActiva);
   }
