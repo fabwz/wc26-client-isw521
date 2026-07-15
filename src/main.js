@@ -5,6 +5,7 @@ import { renderNavbar } from './ui/navbar.js';
 import { renderTeamSelector } from './ui/teamSelector.js';
 import { renderItineraryCards, markStadiumsUnavailableForCards } from './ui/itineraryCards.js';
 import { renderGoalsList, patchTeamNamesForCards } from './ui/goalsList.js';
+import { renderStadiumsChart } from './ui/stadiumsChart.js';
 import { showSessionExpiredModal } from './ui/sessionExpiredModal.js';
 import { mountDevToolsPanel } from './ui/devToolsPanel.js';
 import {
@@ -28,6 +29,7 @@ import {
 } from './api/worldCupApi.js';
 import { buildItinerary } from './domain/itineraryService.js';
 import { buildGoalsList, reconcileGoalsListWithTeams } from './domain/goalsService.js';
+import { buildStadiumsAnalytics } from './domain/stadiumsAnalyticsService.js';
 import { PROJECTS } from './ui/projectMenu.js';
 
 // worldCupApi.js no conoce la UI: main.js inyecta estos callbacks (RF-09/RF-10)
@@ -114,6 +116,49 @@ const obtenerTeamsYGames = async () => {
 
   teamsYGamesEnMemoria = { teams, games };
   return teamsYGamesEnMemoria;
+};
+
+// stadiums/games se comparten con la infraestructura ya en memoria (2.1 puede haber pedido
+// stadiums, 2.1/2.2 pueden haber pedido games) para no duplicar peticiones ya resueltas.
+let stadiumsYGamesEnMemoria = null;
+
+const obtenerStadiumsYGames = async () => {
+  if (stadiumsYGamesEnMemoria) return stadiumsYGamesEnMemoria;
+
+  const gamesPromise = teamsYGamesEnMemoria ? Promise.resolve(teamsYGamesEnMemoria.games) : getGames(banners);
+  const [stadiums, games] = await Promise.all([getStadiums(banners), gamesPromise]);
+
+  if (!Array.isArray(stadiums) || !Array.isArray(games)) {
+    console.error('Respuesta inesperada de la API (se esperaba un array):', { stadiums, games });
+    throw new Error('Respuesta inesperada de stadiums/games');
+  }
+
+  stadiumsYGamesEnMemoria = { stadiums, games };
+  return stadiumsYGamesEnMemoria;
+};
+
+const renderAnaliticaDeEstadios = async (container) => {
+  container.innerHTML = '<div id="stadiums-chart-slot"></div>';
+  const chartSlot = container.querySelector('#stadiums-chart-slot');
+
+  let stadiums;
+  let games;
+
+  try {
+    ({ stadiums, games } = await obtenerStadiumsYGames());
+  } catch (error) {
+    if (error instanceof ApiError && error.status === 401) {
+      manejarSesionExpirada();
+      return;
+    }
+    console.error('Fallo al cargar stadiums/games (sin caché disponible):', error);
+    clearAuth();
+    renderLoginScreen(app, { onSuccess: iniciarApp });
+    return;
+  }
+
+  const analytics = buildStadiumsAnalytics(stadiums, games);
+  renderStadiumsChart(chartSlot, analytics);
 };
 
 const renderRutaDelCampeon = async (container) => {
@@ -252,6 +297,8 @@ const renderVistaActiva = async (viewSlot) => {
     await renderRutaDelCampeon(viewSlot);
   } else if (vistaActiva === 'rastreador-de-goleadas') {
     await renderRastreadorDeGoleadas(viewSlot);
+  } else if (vistaActiva === 'analitica-de-estadios') {
+    await renderAnaliticaDeEstadios(viewSlot);
   } else {
     renderVistaEnConstruccion(viewSlot, vistaActiva);
   }
