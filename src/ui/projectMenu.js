@@ -26,7 +26,7 @@ export const renderProjectMenu = (container, activeProjectId, { onSelect } = {})
       </button>
 
       <div
-        class="project-dropdown hidden absolute left-0 top-[calc(100%+8px)] w-64 glass rounded-[20px] p-2 flex flex-col gap-1 z-20"
+        class="project-dropdown hidden absolute left-0 top-[calc(100%+8px)] w-64 glass-elevated rounded-[20px] p-2 flex flex-col gap-1 z-20"
         role="menu"
       >
         ${PROJECTS.map((proyecto) => `

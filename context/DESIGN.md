@@ -125,6 +125,27 @@ Todas las superficies "glass" (navbar, botones, tarjetas, modales, chips de esta
 - **Hover en elementos interactivos glass:** el borde cambia a un degradado de 1–2px (`border-image` o pseudo-elemento) usando `--gradient-accent`, y `background` sube ligeramente a `rgba(255,255,255,0.09)`. Transición 150–200ms.
 - **Nunca** apilar más de 2 niveles de glass superpuestos (ej. un chip glass dentro de una tarjeta glass es el máximo permitido) para no perder legibilidad.
 
+### 3.0.1 Variante `.glass-elevated` — para dropdowns/popovers sobre contenido dinámico
+
+`.glass` base (6% de opacidad) funciona bien para superficies que flotan sobre el fondo controlado (glow animado) — navbar, tarjetas en su lugar fijo. **No es suficiente para dropdowns/popovers** (menú de proyectos, menú de cuenta) porque estos flotan **encima de contenido que cambia con el scroll** (tarjetas, texto, colores variados) — a 6% de opacidad, ese contenido se transparenta lo suficiente como para romper la legibilidad del texto del dropdown (confirmado visualmente: el nombre de otro subproyecto o el texto de una tarjeta se leía a través del menú desplegado).
+
+```css
+.glass-elevated {
+  background: rgba(10, 10, 15, 0.88);
+  backdrop-filter: blur(28px) saturate(160%);
+  -webkit-backdrop-filter: blur(28px) saturate(160%);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.12),
+    0 12px 40px rgba(0, 0, 0, 0.5); /* sombra más profunda, refuerza que "flota por encima" */
+  border-radius: 20px;
+}
+```
+
+**Dónde usar cada una:**
+- `.glass` → navbar (el contenedor de la píldora en sí), tarjetas de contenido, chips de estado, botones.
+- `.glass-elevated` → el **panel desplegado** de `projectMenu.js` y `accountMenu.js` (el contenido que aparece al hacer clic, no el botón que lo abre — ese botón sigue siendo `.glass` normal como parte de la navbar). También aplica a `sessionExpiredModal.js` si su overlay no fuera suficiente para garantizar contraste por sí solo.
+
 ### 3.1 Iconografía
 
 Todos los íconos son **Lucide**, insertados como **SVG inline copiado directo en el código** (markup estático desde lucide.dev) — nunca vía el paquete npm ni el script CDN de Lucide (ver `CLAUDE.md`, restricción de "sin librerías JS"). `stroke="currentColor"`, sin relleno, grosor de trazo consistente (el default de Lucide, `stroke-width: 2`), color heredado de `Text Primary`/`Text Secondary` según el contexto.
@@ -310,11 +331,14 @@ module.exports = {
 };
 ```
 
-**Clase utilitaria `.glass` recomendada** (en `styles/input.css`, capa `@layer components`):
+**Clases utilitarias recomendadas** (en `styles/input.css`, capa `@layer components`):
 ```css
 @layer components {
   .glass {
     @apply bg-white/[0.06] backdrop-blur-glass border border-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_32px_rgba(0,0,0,0.35)];
+  }
+  .glass-elevated {
+    @apply bg-[rgba(10,10,15,0.88)] backdrop-blur-[28px] border border-white/[0.16] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_40px_rgba(0,0,0,0.5)];
   }
 }
 ```

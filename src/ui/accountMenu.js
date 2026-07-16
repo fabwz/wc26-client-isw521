@@ -25,7 +25,7 @@ export const renderAccountMenu = (container, user, { onLogout } = {}) => {
       </button>
 
       <div
-        class="account-dropdown hidden absolute right-0 top-[calc(100%+8px)] w-64 glass rounded-[20px] p-4 flex flex-col gap-3 z-20"
+        class="account-dropdown hidden absolute right-0 top-[calc(100%+8px)] w-64 glass-elevated rounded-[20px] p-4 flex flex-col gap-3 z-20"
         role="menu"
       >
         <div>

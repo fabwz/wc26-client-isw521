@@ -7,6 +7,10 @@
     @apply bg-white/[0.06] backdrop-blur-glass border border-white/[0.14] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_8px_32px_rgba(0,0,0,0.35)];
   }
 
+  .glass-elevated {
+    @apply bg-[#1D1032]/[0.92] backdrop-blur-[28px] border border-white/[0.16] shadow-[inset_0_1px_0_rgba(255,255,255,0.12),0_12px_40px_rgba(0,0,0,0.5)];
+  }
+
   /* Escala tipográfica (DESIGN.md sección 2) — tokens usados en toda la UI. */
   .display-xl {
     @apply font-display font-extrabold text-[44px] leading-[48px];
