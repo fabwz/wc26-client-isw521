@@ -263,3 +263,13 @@
     scroll-behavior: auto !important;
   }
 }
+
+/* RF-A11Y-02: contorno de foco visible para tarjetas navegables por Tab
+   (itineraryCards.js, goalsList.js, wallRanking.js, stadiumsChart.js,
+   drawsMatrix.js) — token de DESIGN.md sección 7 (Magenta, offset 2px). Las
+   tarjetas son puramente informativas: este foco es solo visual/navegable,
+   no dispara ninguna acción con Enter/Space. */
+.ticket-card:focus-visible {
+  outline: 2px solid #EC4899;
+  outline-offset: 2px;
+}

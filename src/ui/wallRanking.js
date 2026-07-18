@@ -78,6 +78,7 @@ const renderRankingCardHtml = (entrada, indice) => `
     class="card-enter ticket-card relative overflow-hidden glass rounded-[20px] pl-6 pr-5 py-5 grid grid-cols-[minmax(0,1fr)_160px_minmax(0,1fr)] items-center gap-4"
     style="animation-delay: ${indice * 40}ms"
     data-team-id="${entrada.teamId}"
+    tabindex="0"
   >
     <span class="ticket-card-accent absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
 

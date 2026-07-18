@@ -56,6 +56,7 @@ const renderDrawCellHtml = (draw, indice) => `
     class="card-enter ticket-card relative overflow-hidden glass rounded-[16px] pl-5 pr-4 py-4 flex flex-col gap-2"
     style="animation-delay: ${indice * 40}ms"
     data-match-id="${draw.id}"
+    tabindex="0"
   >
     <span class="ticket-card-accent absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
 

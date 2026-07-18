@@ -55,6 +55,7 @@ const renderCardHtml = (match, indice) => `
     class="card-enter ticket-card relative overflow-hidden glass rounded-[20px] pl-6 pr-5 py-5 flex flex-col gap-3"
     style="animation-delay: ${indice * 40}ms"
     data-match-id="${match.id}"
+    tabindex="0"
   >
     <span class="ticket-card-accent absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
 

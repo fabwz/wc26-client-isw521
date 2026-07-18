@@ -57,6 +57,7 @@ const renderStadiumCardHtml = (stadium, indice, maxCapacity, maxGameCount) => `
     class="card-enter ticket-card glass rounded-[20px] p-5 flex flex-col gap-4"
     style="animation-delay: ${indice * 40}ms"
     data-stadium-id="${stadium.id}"
+    tabindex="0"
   >
     <header class="flex items-start justify-between gap-3">
       <div>
