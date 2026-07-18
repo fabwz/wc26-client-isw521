@@ -79,14 +79,17 @@ export const renderStadiumsChart = (container, { stadiums }) => {
   const maxGameCount = Math.max(...stadiums.map((estadio) => estadio.gameCount ?? 0), 0);
 
   container.innerHTML = `
-    <div class="flex flex-wrap items-start justify-between gap-4 mt-6 mb-6">
-      <div class="flex items-center gap-3">
-        <h2 class="font-display text-[26px] leading-[30px] font-bold text-white">Analítica de Estadios</h2>
+    <div class="mt-6 mb-6">
+      <div class="flex flex-wrap items-start justify-between gap-4">
+        <div class="flex items-center gap-3">
+          <h2 class="font-display text-[26px] leading-[30px] font-bold text-white">Analítica de Estadios</h2>
+        </div>
+        <div class="flex items-center gap-2 text-text-secondary">
+          ${ICON_USERS}
+          <span class="body-sm">Capacidad vs. partidos albergados</span>
+        </div>
       </div>
-      <div class="flex items-center gap-2 text-text-secondary">
-        ${ICON_USERS}
-        <span class="body-sm">Capacidad vs. partidos albergados</span>
-      </div>
+      <p class="body-sm text-text-secondary mt-2">Comparativa de aforo y partidos albergados por estadio, con la asistencia potencial estimada.</p>
     </div>
 
     <div class="grid gap-4 sm:grid-cols-2">

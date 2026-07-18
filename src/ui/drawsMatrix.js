@@ -8,8 +8,9 @@
 export const renderDrawsMatrixShell = (container, totalCount) => {
   container.innerHTML = `
     <div class="flex flex-wrap items-start justify-between gap-4 mt-6 mb-6">
-      <div class="flex items-center gap-3">
+      <div class="flex-1 min-w-[240px]">
         <h2 class="font-display text-[26px] leading-[30px] font-bold text-white">Radar de Empates</h2>
+        <p class="body-sm text-text-secondary mt-2">Partidos empatados del torneo, agrupados por grupo.</p>
       </div>
       <div class="text-right">
         <p class="body-sm text-text-secondary">Empates encontrados</p>

@@ -226,6 +226,10 @@ const renderAnaliticaDeEstadios = async (container) => {
 
 const renderRutaDelCampeon = async (container) => {
   container.innerHTML = `
+    <div class="mt-6 mb-6">
+      <h2 class="font-display text-[26px] leading-[30px] font-bold text-white">La Ruta del Campeón</h2>
+      <p class="body-sm text-text-secondary mt-2">Itinerario completo de partidos, estadios y ciudades visitadas por el equipo seleccionado.</p>
+    </div>
     <div id="team-selector-slot" class="max-w-xs"></div>
     <div id="itinerary-slot"></div>
   `;
