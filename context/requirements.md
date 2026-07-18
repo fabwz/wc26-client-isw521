@@ -1,7 +1,11 @@
 # Requisitos del Sistema — Categoría A: Cruce de Datos y Analítica (5 subproyectos)
 **ISW-521 · Proyecto Final**
 
-> ⚠️ **Actualización de alcance:** el enunciado original (PDF) especificaba elegir **un** subproyecto del catálogo. El profesor comunicó posteriormente (fuera del PDF) que **deben implementarse los 5 subproyectos**, con igual peso de evaluación entre ellos. Este documento refleja esa instrucción actualizada. **Pendiente:** obtener confirmación por escrito de este cambio (correo/plataforma del curso), dado que contradice el texto literal del PDF original.
+> ⚠️ **Actualización de alcance:** el enunciado original (PDF) especificaba elegir **un** subproyecto del catálogo. El profesor comunicó posteriormente (fuera del PDF) que **deben implementarse los 5 subproyectos**, con igual peso de evaluación entre ellos. Este documento refleja esa instrucción actualizada.
+>
+> ⚠️ **Requisitos adicionales fuera del PDF:** el profesor también solicitó verbalmente (1) funciones de accesibilidad (tamaño de texto, idioma de página, navegación por teclado) y (2) medidas de seguridad para toda la aplicación (sin especificar cuáles). Ver secciones 15 y 16.
+>
+> **Pendiente:** obtener confirmación **por escrito** de los 3 cambios anteriores (correo/plataforma del curso) — agruparlos en una sola comunicación con el profesor, dado que los 3 contradicen o extienden el texto literal del PDF original.
 
 ---
 
@@ -276,3 +280,41 @@ No se incluye una sección "Standings" genérica adicional — El Muro (2.3) ya 
 - Uso de cualquier framework o librería de **JavaScript** (React, Vue, jQuery, Axios, librerías de gráficas, etc.) — **no permitido bajo ninguna circunstancia**, en ningún subproyecto.
 - Persistencia en backend propio (todo el estado vive en el cliente vía `localStorage`).
 - Registro de usuario dentro de la app (se hace una sola vez, fuera del flujo, vía `curl`/Postman).
+
+---
+
+## 15. Requisitos de Accesibilidad (solicitados verbalmente, fuera del PDF)
+
+Controles ubicados dentro del **dropdown de cuenta** (`accountMenu.js`), en una nueva sección "Accesibilidad", junto al user/logout existente — no un botón flotante nuevo, para no agregar chrome persistente adicional en producción.
+
+### RF-A11Y-01 — Idioma de página (Español / Inglés completo)
+- Toggle que traduce **toda** la interfaz (labels, botones, mensajes de error/resiliencia, los 5 subproyectos) — traducción completa, no solo el atributo `lang`.
+- El atributo `<html lang="...">` debe reflejar el idioma activo: **`es-CR`** para español (no solo `es`), y el código correspondiente para inglés (ej. `en`).
+- Los datos que vienen de la API (nombres de equipos, estadios, ciudades — ya en inglés por naturaleza, ej. `name_en`) **no se traducen** — solo el "chrome" de la interfaz construido por la app.
+- **Restricción dura, no negociable:** cambiar de idioma **no debe alterar el tamaño de fuente ni las proporciones/layout de la página** — solo el contenido textual. (Esto causó un bug real en un proyecto anterior del estudiante; debe evitarse explícitamente, verificando que los contenedores sean flexibles ante textos de distinta longitud entre idiomas, sin depender de anchos fijos calculados para un idioma específico).
+- Persistir la preferencia de idioma en `localStorage`.
+- Arquitectura sugerida: diccionario de strings por clave (`utils/i18n.js` o similar) en vez de traducir literales sueltos por archivo — evita duplicar lógica de traducción en cada uno de los 5 subproyectos.
+
+### RF-A11Y-02 — Navegación por teclado (TAB) en tarjetas
+- Todas las tarjetas de los 5 subproyectos deben ser alcanzables con `Tab` (orden de foco natural, según el orden visual/DOM), con el contorno de foco visible ya definido en `context/DESIGN.md`.
+- **`Enter`/`Space` sobre una tarjeta no debe disparar ninguna acción** — las tarjetas son puramente informativas, el foco es solo visual/navegable. Esto es intencional (decisión explícita para ahorrar tiempo), no un descuido — queda documentado como posible mejora a futuro si se agrega interactividad a las tarjetas.
+- `Enter`/`Space` **sí** deben seguir funcionando con su comportamiento nativo normal en **botones** (esto ya funciona por defecto en HTML, no requiere cambios).
+
+### RF-A11Y-03 — Control de tamaño de texto (A- / A / A+)
+- Control tipo `A-` / `A` / `A+` (3 niveles: reducido / normal / aumentado, o más niveles si se prefiere) que escala el tamaño de fuente de **toda** la aplicación proporcionalmente.
+- Persistir la preferencia en `localStorage`.
+- **Restricción dura:** debe escalar sin romper el layout/proporciones de ninguna vista (tarjetas, navbar, dropdowns) — usar unidades relativas (`rem`) en toda la tipografía para que una variable raíz controle el escalado global, en vez de tamaños fijos en `px` que no responderían al cambio.
+- No debe interferir con el toggle de idioma (RF-A11Y-01) — ambos controles son independientes entre sí.
+
+---
+
+## 16. Requisitos de Seguridad (solicitados verbalmente, sin especificar — pendiente de detalle del profesor)
+
+El profesor pidió "medidas de seguridad para toda la web" sin especificar cuáles. Línea base propuesta (sujeta a confirmación):
+- Content Security Policy (meta tag) restringiendo orígenes de scripts/estilos permitidos.
+- Preferir `textContent` sobre `innerHTML` para datos provenientes de la API, como defensa contra XSS.
+- Validación básica del formulario de login (formato de correo, contraseña no vacía) del lado del cliente.
+- Confirmar que toda comunicación con la API es HTTPS (ya lo es).
+- Nunca persistir la contraseña en `localStorage` ni en memoria más allá del envío del formulario (ya es así — solo se guarda el token).
+
+> Esta sección se ampliará cuando el profesor especifique el alcance exacto de "seguridad" que espera evaluar.

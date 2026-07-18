@@ -16,6 +16,8 @@ Aplicación web para el curso ISW-521 (Programación en Ambiente Web I), Categor
 
 > ⚠️ **Cambio de alcance respecto al enunciado original:** el PDF del enunciado especificaba elegir **un solo** subproyecto. El profesor comunicó posteriormente (verbalmente/fuera del PDF) que deben implementarse **los 5**, con igual peso. Este cambio está **pendiente de confirmación por escrito** — ver nota en `context/requirements.md`. Si en algún momento se recibe una corrección oficial que contradiga esto, `requirements.md` es la fuente de verdad a actualizar primero.
 
+> ⚠️ **Requisitos adicionales fuera del PDF (también verbales):** accesibilidad (idioma ES/EN completo con `lang="es-CR"`, navegación por Tab en tarjetas sin acción de Enter, control de tamaño de texto A-/A/A+) y seguridad (sin especificar aún). Ver `context/requirements.md` secciones 15 y 16.
+
 Los 5 subproyectos **comparten una sola infraestructura de aplicación** (login/JWT, cliente HTTP, resiliencia, sistema de diseño) — no se duplica nada de eso 5 veces. Cada subproyecto solo aporta su propia capa `domain/` (lógica de cruce específica) y su propia vista en `ui/`.
 
 El valor del proyecto **no está en el diseño visual**, está en:
@@ -74,18 +76,25 @@ Ver la estructura de carpetas completa en la **Sección 4**. Regla general: nunc
 Esta es la estructura de referencia. Es intencionalmente compacta — es un laboratorio académico de un solo desarrollador, no un producto de equipo: **la meta es cumplir todo lo exigido de forma ordenada y defendible, no maximizar la cantidad de archivos.** Claude Code debe respetarla al crear o ubicar archivos nuevos; no crear carpetas ni archivos adicionales para lo que ya cabe en uno existente (ej. no separar un archivo por endpoint si son 3 GETs casi idénticos — van juntos).
 
 ```
-proyecto-ruta-del-campeon/
+lab02-isw521/
 ├── .claude/
 │   └── CLAUDE.md             → este archivo — ubicación soportada oficialmente para mantener la raíz del proyecto limpia
 ├── .gitignore
 ├── context/
-│   ├── requirements.md       → requerimientos funcionales y no funcionales de los 5 subproyectos
+│   ├── requirements.md       → requerimientos funcionales y no funcionales de los 5 subproyectos + accesibilidad/seguridad
 │   ├── DESIGN.md             → sistema de diseño: dark UI, liquid glass, degradados animados, tipografía
 │   └── api-reference.md      → schemas JSON reales de cada endpoint (campos exactos, tipos de dato, casos borde)
-├── README.md                  → vacío por ahora; se completa al final, cuando el proyecto ya funcione (setup, cómo correrlo)
+├── dist/                      → salida del build de Vite (gitignored, no editar a mano)
+├── public/
+│   ├── wc26-analytics-logo.svg → logo de la app (formato SVG, no PNG)
+│   └── silueta-norteamerica.svg → mapa de fondo decorativo (ver DESIGN.md)
+├── README.md
 ├── index.html
-├── package.json              → solo para tooling de Tailwind (build/watch), no runtime de JS
+├── package.json
+├── package-lock.json
+├── postcss.config.js
 ├── tailwind.config.js
+├── vite.config.js             → incluye el proxy /wc26-api (resuelve CORS) y el mock local /dev-mock/<status> (solo dev)
 │
 └── src/
     ├── main.js                → punto de entrada: login gate, navegación entre los 5 subproyectos, wiring de callbacks de resiliencia
@@ -100,32 +109,38 @@ proyecto-ruta-del-campeon/
     │   └── groupsApi.js       → GET /get/groups (solo 2.3, El Muro) — respuesta envuelta en { groups: [...] }, no array directo (ver api-reference.md)
     │
     ├── domain/                → LÓGICA DE NEGOCIO / CRUCE DE DATOS (sin fetch, sin DOM) — un archivo por subproyecto
-    │   ├── itineraryService.js       → 2.1 La Ruta del Campeón (✅ ya implementado)
-    │   ├── goalsService.js           → 2.2 Rastreador de Goleadas (RF-RG-01 a 06)
-    │   ├── wallService.js            → 2.3 El Muro (RF-EM-01 a 04)
-    │   ├── stadiumsAnalyticsService.js → 2.4 Analítica de Estadios (RF-AE-01 a 04)
-    │   └── drawsService.js           → 2.5 Radar de Empates (RF-RE-01 a 04)
+    │   ├── authService.js            → login/logout (envuelve authApi.js + appState.js, ver corrección de RNF-01)
+    │   ├── itineraryService.js       → 2.1 La Ruta del Campeón ✅
+    │   ├── goalsService.js           → 2.2 Rastreador de Goleadas ✅
+    │   ├── wallService.js            → 2.3 El Muro ✅
+    │   ├── stadiumsAnalyticsService.js → 2.4 Analítica de Estadios ✅
+    │   └── drawsService.js           → 2.5 Radar de Empates ✅
     │
     ├── state/                 → ESTADO Y PERSISTENCIA (sin DOM) — compartido por los 5
-    │   └── appState.js        → token/user (auth), caché por endpoint con timestamp, subproyecto activo — todo el estado de la app en un solo módulo, con funciones bien nombradas por responsabilidad
+    │   └── appState.js        → token/user (auth), caché por endpoint con timestamp, subproyecto activo
     │
     ├── ui/                    → CAPA DE PRESENTACIÓN (solo DOM, nunca fetch)
     │   ├── loginForm.js       → formulario de login — compartido (reutilizado en pantalla completa y en modal 401)
-    │   ├── accountMenu.js     → dropdown del ícono de cuenta — compartido
-    │   ├── projectMenu.js     → dropdown "Proyectos" para navegar entre los 5 subproyectos (nuevo, ver sección 6.1)
-    │   ├── sessionExpiredModal.js → modal de reautenticación (401), envuelve loginForm.js — compartido
-    │   ├── resilienceBanners.js   → banners en tiempo real (countdown 429, backoff 500, badge de caché) — compartido, con `source` namespaced por subproyecto+dataset
+    │   ├── navbar.js          → contenedor de la navbar (logo + projectMenu + accountMenu)
+    │   ├── projectMenu.js     → dropdown "Proyectos" para navegar entre los 5 subproyectos
+    │   ├── accountMenu.js     → dropdown del ícono de cuenta — próxima casa de accessibilityPanel.js (pendiente, ver §15)
+    │   ├── sessionExpiredModal.js → modal de reautenticación (401), envuelve loginForm.js
+    │   ├── resilienceBanners.js   → banners en tiempo real (countdown 429, backoff 500, badge de caché), `source` namespaced por subproyecto+dataset
     │   ├── teamSelector.js    → 2.1 selector de equipo
     │   ├── itineraryCards.js  → 2.1 tarjetas de itinerario
     │   ├── goalsList.js       → 2.2 lista de goleadas
     │   ├── wallRanking.js     → 2.3 ranking de mejores defensas + próximo rival
     │   ├── stadiumsChart.js   → 2.4 gráfica de barras (SVG/divs, sin librerías)
-    │   └── drawsMatrix.js     → 2.5 matriz visual de empates
+    │   ├── drawsMatrix.js     → 2.5 matriz visual de empates
+    │   └── dev*.js            → simuladores de desarrollo (devToolsPanel.js consolida todos en un panel flotante; devSessionSimulator.js, devRateLimitSimulator.js, devServerErrorSimulator.js, devStadiumsFailureSimulator.js, devTeamsFailureSimulator.js, devGamesFailureSimulator.js, devDrawsGroupFailureSimulator.js, devWallFailureSimulator.js — mapa de atajos documentado en comentario dentro de devToolsPanel.js, revisar antes de agregar uno nuevo para no repetir colisiones)
     │
     └── utils/                 → HELPERS PUROS (sin estado, sin DOM, sin fetch) — compartidos
         ├── backoff.js         → fetchWithBackoff(fetchFn, opciones)
-        └── format.js          → formateo de fechas, ciudad/país y otros helpers de presentación
+        ├── format.js          → formateo de fechas, ciudad/país y otros helpers de presentación
+        └── i18n.js            → (pendiente de crear) diccionario ES/EN + función de traducción + persistencia de idioma (RF-A11Y-01)
 ```
+
+> Nota: `dist/` es generado por `vite build`, nunca se edita a mano — ya está en `.gitignore`.
 
 **Fuera del árbol de `src/`, sin necesidad de carpetas dedicadas todavía:**
 - Assets estáticos (logo `.png`, favicon): ya insertados en `public/`. Íconos de Lucide **no** van aquí como archivos — se copian como SVG inline directo en el código (ver sección 2).
