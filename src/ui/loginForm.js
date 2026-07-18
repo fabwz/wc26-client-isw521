@@ -1,22 +1,23 @@
 import { login } from '../domain/authService.js';
 import { ApiError } from '../api/httpClient.js';
+import { t } from '../utils/i18n.js';
 
 // Traduce el status HTTP a un mensaje de error para el usuario, sin jerga
 // técnica ("token", "JWT", etc. quedan fuera de la UI).
 const mensajeError = (error) => {
   if (!(error instanceof ApiError)) {
-    return 'No se pudo conectar con el servidor. Verifica tu conexión.';
+    return t('login.error.network');
   }
   if (error.status === 401) {
-    return 'Correo o contraseña incorrectos.';
+    return t('login.error.401');
   }
   if (error.status === 429) {
-    return 'Demasiados intentos. Espera un momento antes de volver a intentar.';
+    return t('login.error.429');
   }
   if (error.status >= 500) {
-    return 'El servidor no está disponible en este momento. Intenta de nuevo.';
+    return t('login.error.500');
   }
-  return 'Ocurrió un error inesperado al iniciar sesión.';
+  return t('login.error.unexpected');
 };
 
 // Se reutiliza tal cual dentro del modal de sesión expirada (RF-08).
@@ -29,24 +30,24 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
     <form class="glass rounded-3xl p-8 w-full max-w-[380px] flex flex-col gap-5 ${clasesBorde}" novalidate>
       ${alertMessage ? `<p class="body-sm text-alert font-semibold text-center -mb-1">${alertMessage}</p>` : ''}
       <div>
-        <h1 class="font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">Iniciar sesión</h1>
+        <h1 class="font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">${t('login.title')}</h1>
         ${subtitle ? `<p class="body-sm text-text-secondary mt-2">${subtitle}</p>` : ''}
       </div>
 
       <label class="flex flex-col gap-1.5">
-        <span class="body-sm text-text-secondary">Correo</span>
+        <span class="body-sm text-text-secondary">${t('login.email')}</span>
         <input
           type="email"
           name="email"
           required
           autocomplete="email"
-          placeholder="tu@correo.com"
+          placeholder="${t('login.emailPlaceholder')}"
           class="bg-white/[0.04] border border-white/[0.14] rounded-xl px-4 py-3 text-white placeholder:text-text-secondary/60 outline-none focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2 transition"
         />
       </label>
 
       <label class="flex flex-col gap-1.5">
-        <span class="body-sm text-text-secondary">Contraseña</span>
+        <span class="body-sm text-text-secondary">${t('login.password')}</span>
         <input
           type="password"
           name="password"
@@ -63,7 +64,7 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
         type="submit"
         class="bg-gradient-accent rounded-full py-3 font-body font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2 disabled:opacity-60"
       >
-        Ingresar
+        ${t('login.submit')}
       </button>
     </form>
   `;
@@ -87,7 +88,7 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
     evento.preventDefault();
     ocultarError();
     botonEntrar.disabled = true;
-    botonEntrar.textContent = 'Ingresando...';
+    botonEntrar.textContent = t('login.submitting');
 
     try {
       const user = await login(campoEmail.value, campoPassword.value);
@@ -96,7 +97,7 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
       mostrarError(mensajeError(error));
     } finally {
       botonEntrar.disabled = false;
-      botonEntrar.textContent = 'Ingresar';
+      botonEntrar.textContent = t('login.submit');
     }
   });
 };
@@ -112,6 +113,6 @@ export const renderLoginScreen = (container, { onSuccess } = {}) => {
   const slot = container.querySelector('#login-form-slot');
   renderLoginForm(slot, {
     onSuccess,
-    subtitle: 'Autentícate para consultar el itinerario del Mundial 2026.',
+    subtitle: t('login.subtitle'),
   });
 };

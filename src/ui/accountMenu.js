@@ -1,4 +1,5 @@
 import { renderAccessibilityPanel } from './accessibilityPanel.js';
+import { t } from '../utils/i18n.js';
 
 const ICON_CHEVRON_DOWN = `
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
@@ -22,7 +23,7 @@ export const renderAccountMenu = (container, user, { onLogout } = {}) => {
         aria-expanded="false"
       >
         <span class="w-7 h-7 rounded-full bg-gradient-accent flex items-center justify-center text-white shrink-0">${ICON_USER}</span>
-        <span class="body-sm truncate max-w-[120px]">${user?.name ?? 'Usuario'}</span>
+        <span class="body-sm truncate max-w-[120px]">${user?.name ?? t('account.defaultName')}</span>
         <span class="text-text-secondary">${ICON_CHEVRON_DOWN}</span>
       </button>
 
@@ -31,13 +32,13 @@ export const renderAccountMenu = (container, user, { onLogout } = {}) => {
         role="menu"
       >
         <div>
-          <p class="body-md text-white truncate">${user?.name ?? 'Usuario'}</p>
+          <p class="body-md text-white truncate">${user?.name ?? t('account.defaultName')}</p>
           <p class="body-sm text-text-secondary truncate">${user?.email ?? ''}</p>
         </div>
 
         <span class="self-start glass rounded-full px-2.5 py-1 text-xs text-text-secondary flex items-center gap-1.5">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
-          Sesión activa
+          ${t('account.activeSession')}
         </span>
 
         <div class="border-t border-dashed border-white/[0.16]"></div>
@@ -51,7 +52,7 @@ export const renderAccountMenu = (container, user, { onLogout } = {}) => {
           class="account-logout flex items-center gap-2 body-sm text-text-secondary hover:text-alert transition focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2 rounded-lg"
         >
           ${ICON_LOG_OUT}
-          Cerrar sesión
+          ${t('account.logout')}
         </button>
       </div>
     </div>

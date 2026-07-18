@@ -1,4 +1,5 @@
 import { renderLoginForm } from './loginForm.js';
+import { t } from '../utils/i18n.js';
 
 let modalActual = null;
 
@@ -15,8 +16,8 @@ export const showSessionExpiredModal = ({ onReauthenticated } = {}) => {
 
   const slot = overlay.querySelector('#session-expired-form-slot');
   renderLoginForm(slot, {
-    subtitle: 'Vuelve a ingresar tus credenciales para continuar.',
-    alertMessage: 'Tu sesión expiró',
+    subtitle: t('login.sessionExpiredSubtitle'),
+    alertMessage: t('login.sessionExpiredAlert'),
     onSuccess: (user) => {
       closeSessionExpiredModal();
       onReauthenticated?.(user);

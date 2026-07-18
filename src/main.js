@@ -1,4 +1,5 @@
 import { initFontScale } from './utils/fontScale.js';
+import { initI18n, onLanguageChange, t } from './utils/i18n.js';
 import { isAuthenticated, clearAuth, getUser } from './state/appState.js';
 import { ApiError } from './api/httpClient.js';
 import { renderLoginScreen } from './ui/loginForm.js';
@@ -38,7 +39,7 @@ import { buildGoalsList, reconcileGoalsListWithTeams } from './domain/goalsServi
 import { buildWallRanking } from './domain/wallService.js';
 import { buildStadiumsAnalytics, buildStadiumsBaseline } from './domain/stadiumsAnalyticsService.js';
 import { buildDrawsRadar } from './domain/drawsService.js';
-import { PROJECTS } from './ui/projectMenu.js';
+import { getProjectName } from './ui/projectMenu.js';
 
 // worldCupApi.js no conoce la UI: main.js inyecta estos callbacks (RF-09/RF-10)
 // en cada llamada a getTeams/getGames/getStadiums/simulate* — ver worldCupApi.js.
@@ -136,12 +137,17 @@ mountDevToolsPanel({
 // Vista activa entre los 5 subproyectos (sin librería de router, switch de estado + render condicional).
 let vistaActiva = 'ruta-del-campeon';
 
+// Referencia al closure `seleccionarProyecto` de iniciarApp() (se reasigna cada vez que corre),
+// para que el suscriptor de cambio de idioma (más abajo) pueda reconstruir la navbar con el
+// mismo callback de navegación sin duplicar su lógica.
+let seleccionarProyectoActual = null;
+
 const renderVistaEnConstruccion = (container, proyectoId) => {
-  const proyecto = PROJECTS.find((item) => item.id === proyectoId);
+  const nombreProyecto = getProjectName(proyectoId) || t('view.genericProject');
   container.innerHTML = `
     <div class="glass rounded-[20px] p-8 flex flex-col items-center gap-2 text-center max-w-md mx-auto">
-      <p class="display-md text-white">${proyecto?.name ?? 'Proyecto'}</p>
-      <p class="body-md text-text-secondary">Esta vista está en construcción. Pronto disponible.</p>
+      <p class="display-md text-white">${nombreProyecto}</p>
+      <p class="body-md text-text-secondary">${t('view.underConstruction')}</p>
     </div>
   `;
 };
@@ -228,8 +234,8 @@ const renderAnaliticaDeEstadios = async (container) => {
 const renderRutaDelCampeon = async (container) => {
   container.innerHTML = `
     <div class="mt-6 mb-6">
-      <h2 class="header-enter font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">La Ruta del Campeón</h2>
-      <p class="header-enter body-sm text-text-secondary mt-2" style="animation-delay: 60ms">Itinerario completo de partidos, estadios y ciudades visitadas por el equipo seleccionado.</p>
+      <h2 class="header-enter font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">${t('itinerary.title')}</h2>
+      <p class="header-enter body-sm text-text-secondary mt-2" style="animation-delay: 60ms">${t('itinerary.description')}</p>
     </div>
     <div id="team-selector-slot" class="max-w-xs"></div>
     <div id="itinerary-slot"></div>
@@ -514,6 +520,8 @@ const iniciarApp = async () => {
     }
   };
 
+  seleccionarProyectoActual = seleccionarProyecto;
+
   renderNavbar(navbarSlot, getUser(), {
     onLogout: cerrarSesion,
     activeProjectId: vistaActiva,
@@ -522,6 +530,29 @@ const iniciarApp = async () => {
 
   await renderVistaActiva(viewSlot);
 };
+
+// RF-A11Y-01: se aplica antes de renderizar nada (mismo momento que initFontScale) para que
+// no haya parpadeo de idioma cuando ya hay una preferencia guardada en localStorage.
+initI18n();
+
+// RF-A11Y-01: cambiar el idioma desde accessibilityPanel.js debe re-renderizar de inmediato
+// la navbar (nombres de proyecto, cuenta) y la vista actualmente activa — sin recargar la
+// página ni requerir que el usuario cambie de vista manualmente. Solo aplica cuando la app ya
+// está montada (hay sesión iniciada); en la pantalla de login, renderLoginScreen no está
+// suscrita aquí porque el usuario puede volver a togglear el idioma desde el login mismo la
+// próxima vez que main.js corra, y no hay estado de vista que preservar antes de autenticarse.
+onLanguageChange(async () => {
+  if (!isAuthenticated()) return;
+  const navbarSlot = app.querySelector('#navbar-slot');
+  const viewSlot = app.querySelector('#view-slot');
+  if (!navbarSlot || !viewSlot) return;
+  renderNavbar(navbarSlot, getUser(), {
+    onLogout: cerrarSesion,
+    activeProjectId: vistaActiva,
+    onProjectSelected: seleccionarProyectoActual,
+  });
+  await renderVistaActiva(viewSlot);
+});
 
 // RF-A11Y-03: se aplica antes de renderizar nada (login o app) para que no haya parpadeo
 // visible de "normal" a "ajustado" cuando ya hay una preferencia guardada en localStorage.

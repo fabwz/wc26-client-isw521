@@ -1,14 +1,23 @@
+import { t } from '../utils/i18n.js';
+
 const ICON_CHEVRON_DOWN = `
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>
 `;
 
+// `nameKey` en vez de un nombre fijo: el nombre oficial del catálogo se traduce vía i18n.js
+// (RF-A11Y-01) pero el `id` nunca cambia con el idioma (se usa como estado interno de navegación).
 export const PROJECTS = [
-  { id: 'ruta-del-campeon', name: 'La Ruta del Campeón' },
-  { id: 'rastreador-de-goleadas', name: 'Rastreador de Goleadas' },
-  { id: 'el-muro', name: 'El Muro' },
-  { id: 'analitica-de-estadios', name: 'Analítica de Estadios' },
-  { id: 'radar-de-empates', name: 'Radar de Empates' },
+  { id: 'ruta-del-campeon', nameKey: 'project.rutaDelCampeon' },
+  { id: 'rastreador-de-goleadas', nameKey: 'project.rastreadorDeGoleadas' },
+  { id: 'el-muro', nameKey: 'project.elMuro' },
+  { id: 'analitica-de-estadios', nameKey: 'project.analiticaDeEstadios' },
+  { id: 'radar-de-empates', nameKey: 'project.radarDeEmpates' },
 ];
+
+export const getProjectName = (proyectoId) => {
+  const proyecto = PROJECTS.find((item) => item.id === proyectoId);
+  return proyecto ? t(proyecto.nameKey) : '';
+};
 
 export const renderProjectMenu = (container, activeProjectId, { onSelect } = {}) => {
   const proyectoActivo = PROJECTS.find((proyecto) => proyecto.id === activeProjectId) ?? PROJECTS[0];
@@ -21,7 +30,7 @@ export const renderProjectMenu = (container, activeProjectId, { onSelect } = {})
         aria-haspopup="true"
         aria-expanded="false"
       >
-        <span class="body-sm truncate max-w-[160px]">${proyectoActivo.name}</span>
+        <span class="body-sm truncate max-w-[160px]">${t(proyectoActivo.nameKey)}</span>
         <span class="text-text-secondary">${ICON_CHEVRON_DOWN}</span>
       </button>
 
@@ -40,7 +49,7 @@ export const renderProjectMenu = (container, activeProjectId, { onSelect } = {})
             }"
             role="menuitem"
           >
-            ${proyecto.name}
+            ${t(proyecto.nameKey)}
           </button>
         `).join('')}
       </div>
