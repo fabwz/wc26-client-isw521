@@ -1,4 +1,4 @@
-import { formatGroupLabel, animateCountUp } from '../utils/format.js';
+import { formatGroupLabel, animateCountUp, escapeHtml } from '../utils/format.js';
 import { t } from '../utils/i18n.js';
 
 // Ícono Lucide como SVG inline (CLAUDE.md 2), nunca el paquete npm ni el script CDN.
@@ -46,8 +46,8 @@ const releaseCardEnterClass = (container) => {
 // (RF-RG-R) pueda ubicar y reemplazar solo ese span cuando /get/teams llega tarde.
 const renderTeamHtml = (name, flag, role) => `
   <span class="flex items-center gap-2" data-team="${role}">
-    ${flag ? `<img src="${flag}" alt="" class="w-5 h-5 rounded-full object-cover shrink-0" />` : ''}
-    <span>${name}</span>
+    ${flag ? `<img src="${escapeHtml(flag)}" alt="" class="w-5 h-5 rounded-full object-cover shrink-0" />` : ''}
+    <span>${escapeHtml(name)}</span>
   </span>
 `;
 
@@ -79,7 +79,7 @@ const renderCardHtml = (match, indice) => `
       </p>
     </div>
 
-    <p class="font-mono text-[0.8125rem] text-text-secondary">${match.localDate}</p>
+    <p class="font-mono text-[0.8125rem] text-text-secondary">${escapeHtml(match.localDate)}</p>
   </article>
 `;
 

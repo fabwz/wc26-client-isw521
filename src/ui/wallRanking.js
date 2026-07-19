@@ -1,4 +1,5 @@
 import { t } from '../utils/i18n.js';
+import { escapeHtml } from '../utils/format.js';
 
 // Ícono Lucide como SVG inline (CLAUDE.md 2), nunca el paquete npm ni el script CDN.
 const ICON_SHIELD = `
@@ -40,8 +41,8 @@ const releaseCardEnterClass = (container) => {
 
 const renderTeamHtml = (name, flag) => `
   <span class="flex items-center gap-2">
-    ${flag ? `<img src="${flag}" alt="" class="w-6 h-6 rounded-full object-cover shrink-0" />` : ''}
-    <span>${name}</span>
+    ${flag ? `<img src="${escapeHtml(flag)}" alt="" class="w-6 h-6 rounded-full object-cover shrink-0" />` : ''}
+    <span>${escapeHtml(name)}</span>
   </span>
 `;
 
@@ -61,8 +62,8 @@ const renderNextOpponentHtml = (entrada) => {
 
   if (entrada.matchStatus === 'pending-bracket') {
     return `
-      <p class="text-text-secondary italic">${entrada.nextOpponentName}</p>
-      <p class="text-text-secondary text-[0.8125rem]">${entrada.nextMatchDate}</p>
+      <p class="text-text-secondary italic">${escapeHtml(entrada.nextOpponentName)}</p>
+      <p class="text-text-secondary text-[0.8125rem]">${escapeHtml(entrada.nextMatchDate)}</p>
     `;
   }
 
@@ -71,7 +72,7 @@ const renderNextOpponentHtml = (entrada) => {
       <span class="text-text-secondary">vs</span>
       ${renderTeamHtml(entrada.nextOpponentName, entrada.nextOpponentFlag)}
     </p>
-    <p class="text-text-secondary text-[0.8125rem]">${entrada.nextMatchDate}</p>
+    <p class="text-text-secondary text-[0.8125rem]">${escapeHtml(entrada.nextMatchDate)}</p>
   `;
 };
 

@@ -1,3 +1,20 @@
+// Sección 16 (context/requirements.md): defensa XSS para todo texto proveniente de la API
+// (worldcup26.ir) que se interpola dentro de un template de innerHTML. No se traduce ni
+// se usa para textos fijos generados por la app, solo para datos externos (nombres de
+// equipo/estadio, ciudad/país, fechas, URLs de bandera, etc.).
+const HTML_ESCAPE_MAP = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#39;',
+};
+
+export const escapeHtml = (value) => {
+  if (value === null || value === undefined) return '';
+  return String(value).replace(/[&<>"']/g, (caracter) => HTML_ESCAPE_MAP[caracter]);
+};
+
 // En fase eliminatoria, el campo `group` de /get/games deja de ser una letra (A..L) y pasa a ser un código de ronda.
 const ROUND_LABELS = {
   R32: 'Ronda de 32',
@@ -9,7 +26,7 @@ const ROUND_LABELS = {
 };
 
 export const formatGroupLabel = (group) => {
-  return ROUND_LABELS[group] ?? `Grupo ${group}`;
+  return ROUND_LABELS[group] ?? `Grupo ${escapeHtml(group)}`;
 };
 
 // Conteo animado (0 → targetValue) para los números destacados de cada vista (ciudades

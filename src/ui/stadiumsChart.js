@@ -1,4 +1,4 @@
-import { animateCountUp } from '../utils/format.js';
+import { animateCountUp, escapeHtml } from '../utils/format.js';
 import { t } from '../utils/i18n.js';
 
 // Ícono Lucide como SVG inline (CLAUDE.md 2), nunca el paquete npm ni el script CDN.
@@ -62,8 +62,8 @@ const renderStadiumCardHtml = (stadium, indice, maxCapacity, maxGameCount) => `
   >
     <header class="flex items-start justify-between gap-3">
       <div>
-        <h3 class="font-display font-bold text-white">${stadium.name}</h3>
-        <p class="font-mono text-[0.8125rem] text-text-secondary">${stadium.cityCountry}</p>
+        <h3 class="font-display font-bold text-white">${escapeHtml(stadium.name)}</h3>
+        <p class="font-mono text-[0.8125rem] text-text-secondary">${escapeHtml(stadium.cityCountry)}</p>
       </div>
       <div class="text-right shrink-0">
         <p class="body-sm text-text-secondary">${t('stadiums.potentialAttendance')}</p>

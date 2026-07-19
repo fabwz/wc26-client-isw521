@@ -1,4 +1,4 @@
-import { animateCountUp } from '../utils/format.js';
+import { animateCountUp, escapeHtml } from '../utils/format.js';
 import { t } from '../utils/i18n.js';
 
 // RF-RE-03/04: matriz visual de empates agrupada por grupo, con contador por grupo.
@@ -34,15 +34,15 @@ export const renderDrawsMatrixShell = (container, totalCount) => {
 
 const renderTeamHtml = (name, flag) => `
   <span class="flex items-center gap-2">
-    ${flag ? `<img src="${flag}" alt="" class="w-5 h-5 rounded-full object-cover shrink-0" />` : ''}
-    <span>${name}</span>
+    ${flag ? `<img src="${escapeHtml(flag)}" alt="" class="w-5 h-5 rounded-full object-cover shrink-0" />` : ''}
+    <span>${escapeHtml(name)}</span>
   </span>
 `;
 
 const renderGroupSectionHtml = ({ group, draws }) => `
-  <section class="glass rounded-[20px] p-5 flex flex-col gap-4" data-group="${group}">
+  <section class="glass rounded-[20px] p-5 flex flex-col gap-4" data-group="${escapeHtml(group)}">
     <header class="flex items-center justify-between">
-      <h3 class="font-display font-bold text-white">${t('draws.group')} ${group}</h3>
+      <h3 class="font-display font-bold text-white">${t('draws.group')} ${escapeHtml(group)}</h3>
       <span class="glass rounded-full px-2.5 py-0.5 text-xs text-text-secondary font-mono">${draws.length} ${draws.length === 1 ? t('draws.count.one') : t('draws.count.other')}</span>
     </header>
 
@@ -70,8 +70,8 @@ const renderDrawCellHtml = (draw, indice) => `
     <div class="border-t border-dashed border-white/[0.16]"></div>
 
     <div class="font-mono text-[0.9375rem] leading-5 flex items-center justify-between">
-      <p class="text-white">${draw.score} - ${draw.score}</p>
-      <p class="text-text-secondary text-[0.8125rem]">${draw.localDate}</p>
+      <p class="text-white">${escapeHtml(draw.score)} - ${escapeHtml(draw.score)}</p>
+      <p class="text-text-secondary text-[0.8125rem]">${escapeHtml(draw.localDate)}</p>
     </div>
   </article>
 `;

@@ -1,4 +1,4 @@
-import { formatGroupLabel, animateCountUp } from '../utils/format.js';
+import { formatGroupLabel, animateCountUp, escapeHtml } from '../utils/format.js';
 import { t } from '../utils/i18n.js';
 
 // Íconos Lucide como SVG inline (CLAUDE.md 2), nunca el paquete npm ni el script CDN.
@@ -19,8 +19,8 @@ export const renderItineraryCards = (container, teamName, teamFlag, { matches, c
   container.innerHTML = `
     <div class="flex flex-wrap items-start justify-between gap-4 mt-6 mb-6">
       <div class="flex items-center gap-3">
-        ${teamFlag ? `<img src="${teamFlag}" alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />` : ''}
-        <h2 class="font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">${teamName}</h2>
+        ${teamFlag ? `<img src="${escapeHtml(teamFlag)}" alt="" class="w-10 h-10 rounded-full object-cover shrink-0" />` : ''}
+        <h2 class="font-display text-[1.625rem] leading-[1.875rem] font-bold text-white">${escapeHtml(teamName)}</h2>
       </div>
       <div class="text-right">
         <p class="body-sm text-text-secondary">${t('itinerary.citiesVisited')}</p>
@@ -61,14 +61,14 @@ const renderCardHtml = (match, indice) => `
     <span class="ticket-card-accent absolute inset-y-0 left-0 w-[3px] bg-gradient-to-b from-violet to-magenta"></span>
 
     <header class="flex items-center justify-between gap-2">
-      <h3 class="font-display font-bold text-white">${match.homeTeamName} vs ${match.awayTeamName}</h3>
+      <h3 class="font-display font-bold text-white">${escapeHtml(match.homeTeamName)} vs ${escapeHtml(match.awayTeamName)}</h3>
       <span class="glass rounded-full px-2.5 py-0.5 text-xs text-text-secondary shrink-0">${formatGroupLabel(match.group)}</span>
     </header>
 
     <div class="border-t border-dashed border-white/[0.16]"></div>
 
     <div class="font-mono text-[0.9375rem] leading-5 flex flex-col gap-2">
-      <p class="flex items-center gap-2 text-white"><span class="text-text-secondary">${ICON_CALENDAR}</span>${match.localDate}</p>
+      <p class="flex items-center gap-2 text-white"><span class="text-text-secondary">${ICON_CALENDAR}</span>${escapeHtml(match.localDate)}</p>
       <div data-stadium-fields>${renderStadiumFieldsHtml(match.stadium)}</div>
     </div>
   </article>
@@ -79,8 +79,8 @@ const renderStadiumFieldsHtml = (stadium) => {
     return `<p class="flex items-center gap-2 text-text-secondary italic"><span>${ICON_LANDMARK}</span>${t('itinerary.stadiumUnavailable')}</p>`;
   }
   return `
-    <p class="flex items-center gap-2 text-white"><span class="text-text-secondary">${ICON_LANDMARK}</span>${stadium.name}</p>
-    <p class="flex items-center gap-2 text-text-secondary"><span>${ICON_MAP_PIN}</span>${stadium.cityCountry}</p>
+    <p class="flex items-center gap-2 text-white"><span class="text-text-secondary">${ICON_LANDMARK}</span>${escapeHtml(stadium.name)}</p>
+    <p class="flex items-center gap-2 text-text-secondary"><span>${ICON_MAP_PIN}</span>${escapeHtml(stadium.cityCountry)}</p>
     <p class="flex items-center gap-2 text-white"><span class="text-text-secondary">${ICON_USERS}</span>${stadium.capacity.toLocaleString()}</p>
   `;
 };
