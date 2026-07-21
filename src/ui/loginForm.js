@@ -122,6 +122,11 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
     return esValido;
   };
 
+  // Controlador de la petición de login en curso: si el usuario reintenta antes de que la
+  // anterior termine (ej. quedó colgada por una conexión bloqueada), se aborta en vez de
+  // dejarla viva junto a la nueva — evita acumular peticiones sin cancelar entre reintentos.
+  let loginEnCurso = null;
+
   formulario.addEventListener('submit', async (evento) => {
     evento.preventDefault();
     ocultarError();
@@ -130,17 +135,26 @@ export const renderLoginForm = (container, { onSuccess, subtitle, alertMessage }
       return;
     }
 
+    loginEnCurso?.abort();
+    const controlador = new AbortController();
+    loginEnCurso = controlador;
+
     botonEntrar.disabled = true;
     botonEntrar.textContent = t('login.submitting');
 
     try {
-      const user = await login(campoEmail.value, campoPassword.value);
+      const user = await login(campoEmail.value, campoPassword.value, { signal: controlador.signal });
       onSuccess?.(user);
     } catch (error) {
+      // El intento cancelado no debe pisar el mensaje/estado del reintento que lo reemplazó.
+      if (controlador.signal.aborted) return;
       mostrarError(mensajeError(error));
     } finally {
-      botonEntrar.disabled = false;
-      botonEntrar.textContent = t('login.submit');
+      if (loginEnCurso === controlador) {
+        loginEnCurso = null;
+        botonEntrar.disabled = false;
+        botonEntrar.textContent = t('login.submit');
+      }
     }
   });
 };

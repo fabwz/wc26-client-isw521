@@ -5,8 +5,8 @@ import { setAuth, clearAuth, getToken, getUser, isAuthenticated } from '../state
 // token/user en appState. Lanza el mismo ApiError que authApi.login
 // (401 credenciales inválidas, 429 rate limit, 500 servidor) — el llamador
 // (ui/loginForm.js) decide el mensaje a mostrar.
-export const login = async (email, password) => {
-  const { user, token } = await loginRequest(email, password);
+export const login = async (email, password, { signal } = {}) => {
+  const { user, token } = await loginRequest(email, password, { signal });
   setAuth(token, user);
   return user;
 };

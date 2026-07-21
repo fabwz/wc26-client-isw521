@@ -21,9 +21,18 @@ export class NetworkError extends Error {
   }
 }
 
-const fetchConTimeout = async (url, options) => {
+const fetchConTimeout = async (url, options, externalSignal) => {
   const controlador = new AbortController();
   const timeoutId = setTimeout(() => controlador.abort(), REQUEST_TIMEOUT_MS);
+
+  // `externalSignal` deja que el llamador cancele esta petición desde afuera (ej. loginForm.js
+  // aborta el intento de login anterior cuando el usuario reintenta) sin duplicar la lógica de
+  // timeout: solo se reenvía el abort() hacia el controlador interno.
+  const abortarPorSenalExterna = () => controlador.abort();
+  if (externalSignal) {
+    if (externalSignal.aborted) controlador.abort();
+    else externalSignal.addEventListener('abort', abortarPorSenalExterna, { once: true });
+  }
 
   try {
     return await fetch(url, { ...options, signal: controlador.signal });
@@ -34,6 +43,7 @@ const fetchConTimeout = async (url, options) => {
     throw new NetworkError('No se pudo conectar con el servidor', error);
   } finally {
     clearTimeout(timeoutId);
+    if (externalSignal) externalSignal.removeEventListener('abort', abortarPorSenalExterna);
   }
 };
 
@@ -72,12 +82,12 @@ export const authFetch = async (path, token) => {
 };
 
 // Para los endpoints /auth/*, que no llevan Authorization header.
-export const publicFetch = async (path, body) => {
+export const publicFetch = async (path, body, { signal } = {}) => {
   const respuesta = await fetchConTimeout(`${API_BASE_URL}${path}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(body),
-  });
+  }, signal);
 
   return clasificarRespuesta(respuesta, {
     401: 'Credenciales inválidas',

@@ -56,6 +56,8 @@ const DICTIONARY = {
   // main.js — vista en construcción + genérico
   'view.underConstruction': { es: 'Esta vista está en construcción. Pronto disponible.', en: 'This view is under construction. Coming soon.' },
   'view.genericProject': { es: 'Proyecto', en: 'Project' },
+  'view.loadError': { es: 'No se pudieron cargar los datos. Verifica tu conexión e intenta de nuevo.', en: 'The data could not be loaded. Check your connection and try again.' },
+  'view.retry': { es: 'Reintentar', en: 'Retry' },
 
   // resilienceBanners.js
   'banner.rateLimit': { es: 'Límite de tasa<br />reintentando en', en: 'Rate limit<br />retrying in' },

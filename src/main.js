@@ -142,6 +142,27 @@ let vistaActiva = 'ruta-del-campeon';
 // mismo callback de navegación sin duplicar su lógica.
 let seleccionarProyectoActual = null;
 
+// Fallback de resiliencia para fallos de CARGA DE DATOS (401 ya se maneja aparte, vía
+// manejarSesionExpirada). Antes, estos catch hacían clearAuth() + renderLoginScreen() como si
+// fuera un problema de sesión — pero el token seguía siendo válido, solo falló /get/teams o
+// /get/games sin caché disponible. Eso forzaba al usuario a reautenticarse una y otra vez sin
+// que el fallo real (de red/API) se resolviera, produciendo un loop de login. Este estado
+// mantiene la sesión activa, explica el fallo y deja reintentar sin perder contexto.
+const renderDataLoadErrorState = (container, { onRetry }) => {
+  container.innerHTML = `
+    <div class="glass rounded-[20px] p-8 flex flex-col items-center gap-4 text-center max-w-md mx-auto">
+      <p class="body-md text-text-secondary">${t('view.loadError')}</p>
+      <button
+        type="button"
+        class="bg-gradient-accent rounded-full px-6 py-2.5 font-body font-semibold text-white transition hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-magenta focus-visible:outline-offset-2"
+      >
+        ${t('view.retry')}
+      </button>
+    </div>
+  `;
+  container.querySelector('button').addEventListener('click', onRetry, { once: true });
+};
+
 const renderVistaEnConstruccion = (container, proyectoId) => {
   const nombreProyecto = getProjectName(proyectoId) || t('view.genericProject');
   container.innerHTML = `
@@ -159,7 +180,27 @@ let teamsYGamesEnMemoria = null;
 const obtenerTeamsYGames = async () => {
   if (teamsYGamesEnMemoria) return teamsYGamesEnMemoria;
 
-  const [teams, games] = await Promise.all([getTeams(banners), getGames(banners)]);
+  // allSettled (no all): los 3 subproyectos que usan esta función necesitan AMBOS datasets
+  // para cruzar datos (a diferencia de Goleadas, que sí puede degradar con ids crudos — ver
+  // RF-RG-R más abajo), así que un fallo de cualquiera de los dos sigue bloqueando la vista.
+  // La ganancia de allSettled sobre all es diagnóstica: distinguir cuál de los dos falló
+  // para un mensaje claro, y no perder la excepción 401 del otro si ambos fallan a la vez.
+  const [teamsResultado, gamesResultado] = await Promise.allSettled([getTeams(banners), getGames(banners)]);
+
+  if (teamsResultado.status === 'rejected' || gamesResultado.status === 'rejected') {
+    const fallos = [teamsResultado, gamesResultado].filter((resultado) => resultado.status === 'rejected');
+    // Si hubo un 401 se prioriza sobre cualquier otro fallo: es el único caso que dispara
+    // el modal de sesión expirada en vez del estado de error genérico (ver catch en cada vista).
+    const fallo401 = fallos.find((resultado) => resultado.reason instanceof ApiError && resultado.reason.status === 401);
+    if (fallo401) throw fallo401.reason;
+
+    const datasetFallido = teamsResultado.status === 'rejected' ? 'teams' : 'games';
+    console.error(`Fallo al cargar ${datasetFallido} (sin caché disponible):`, fallos.map((resultado) => resultado.reason));
+    throw new Error(`No se pudo cargar ${datasetFallido}`);
+  }
+
+  const teams = teamsResultado.value;
+  const games = gamesResultado.value;
 
   // La API puede devolver 200 con un cuerpo que no es el array esperado (token corrupto no rechazado con 401).
   if (!Array.isArray(teams) || !Array.isArray(games)) {
@@ -195,14 +236,12 @@ const renderAnaliticaDeEstadios = async (container) => {
       return;
     }
     console.error('Fallo al cargar stadiums (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderAnaliticaDeEstadios(container) });
     return;
   }
   if (!Array.isArray(stadiums)) {
     console.error('Respuesta inesperada de la API (se esperaba un array):', { stadiums });
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderAnaliticaDeEstadios(container) });
     return;
   }
   stadiumsEnMemoria = stadiums;
@@ -255,8 +294,7 @@ const renderRutaDelCampeon = async (container) => {
       return;
     }
     console.error('Fallo al cargar teams/games (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderRutaDelCampeon(container) });
     return;
   }
 
@@ -312,8 +350,7 @@ const renderRastreadorDeGoleadas = async (container) => {
       return;
     }
     console.error('Fallo al cargar games (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderRastreadorDeGoleadas(container) });
     return;
   }
 
@@ -382,8 +419,7 @@ const renderElMuro = async (container) => {
       return;
     }
     console.error('Fallo al cargar teams/games (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderElMuro(container) });
     return;
   }
 
@@ -397,8 +433,7 @@ const renderElMuro = async (container) => {
       return;
     }
     console.error('Fallo al cargar groups (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderElMuro(container) });
     return;
   }
 
@@ -435,8 +470,7 @@ const renderRadarDeEmpates = async (container) => {
       return;
     }
     console.error('Fallo al cargar teams/games (sin caché disponible):', error);
-    clearAuth();
-    renderLoginScreen(app, { onSuccess: iniciarApp });
+    renderDataLoadErrorState(container, { onRetry: () => renderRadarDeEmpates(container) });
     return;
   }
 
