@@ -12,6 +12,16 @@
     (sin servidor propio que agregue encabezados), así que no hay forma de
     enviarla como header desde este hosting.
   -->
+  <!--
+    ws://localhost:* y ws://127.0.0.1:* en connect-src: requeridos por el
+    WebSocket de HMR de Vite en desarrollo. Se dejan siempre presentes (no
+    condicionados a import.meta.env.DEV) porque esta meta tag se escribe una
+    sola vez al parsear el HTML, antes de que cualquier script del bundle
+    (y por tanto import.meta.env) exista; condicionarlo requeriría un plugin
+    de Vite que reescriba el HTML en build. No representa riesgo real: en
+    producción no hay servidor de dev escuchando en esos orígenes, así que
+    la directiva queda inerte.
+  -->
   <meta
     http-equiv="Content-Security-Policy"
     content="
@@ -20,7 +30,7 @@
       style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
       font-src 'self' https://fonts.gstatic.com;
       img-src 'self' data: https://flagcdn.com;
-      connect-src 'self' https://worldcup26.ir;
+      connect-src 'self' https://worldcup26.ir ws://localhost:* ws://127.0.0.1:*;
       object-src 'none';
       base-uri 'self';
     "
