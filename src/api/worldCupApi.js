@@ -96,17 +96,7 @@ export const getGames = async (banners) => fetchDatasetResiliente('games', '/get
 // capacity (viene como número, no string). Ver main.js para el aislamiento de
 // este fallo respecto a teams/games (RF-11): si stadiums falla sin caché, se
 // deja que el itinerario se renderice igual con stadium = null por partido.
-// TEMPORAL: contador de invocaciones reales (una por llamada a getStadiums, NO una por
-// reintento de backoff — los reintentos ocurren dentro de la misma invocación, en
-// fetchWithBackoff). Sirve para confirmar en consola si 2 mensajes de error idénticos
-// vienen de un solo ciclo de backoff o de 2 llamadas independientes (ej. La Ruta del
-// Campeón y Analítica de Estadios pidiendo stadiums por separado). Retirar una vez confirmado.
-let stadiumsInvocationCounter = 0;
-export const getStadiums = async (banners) => {
-  stadiumsInvocationCounter += 1;
-  console.debug(`[TEMP] getStadiums() — invocación #${stadiumsInvocationCounter}`);
-  return fetchDatasetResiliente('stadiums', '/get/stadiums', 'stadiums', banners);
-};
+export const getStadiums = async (banners) => fetchDatasetResiliente('stadiums', '/get/stadiums', 'stadiums', banners);
 
 // SOLO DESARROLLO. Base compartida por simulateServerError (500): usa fetch() real a /dev-mock/<status>
 // (no un ApiError sintético) para que Network muestre status/headers/body

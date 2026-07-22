@@ -267,7 +267,11 @@ const renderRutaDelCampeon = async (container) => {
   // "pendiente" (ver buildItineraryMatches). Solo cuando esta promesa resuelve (éxito o
   // fallo) se parchan las tarjetas ya visibles, sin volver a pedir games ni re-renderizar
   // la lista completa.
-  const stadiumsPromise = getStadiums(banners);
+  // Si `stadiumsEnMemoria` ya tiene datos (esta vista u otra —p. ej. Analítica de Estadios—
+  // ya los resolvió antes en esta misma sesión), se reutilizan sin volver a pedir /get/stadiums;
+  // así ambas vistas comparten un único caché en memoria en vez de disparar cada una su propio
+  // ciclo de backoff contra el mismo endpoint.
+  const stadiumsPromise = stadiumsEnMemoria ? Promise.resolve(stadiumsEnMemoria) : getStadiums(banners);
 
   // Si el usuario cambia de equipo antes de que stadiumsPromise resuelva, este contador
   // permite ignorar el parche cuando ya no corresponde a la selección visible.
@@ -298,6 +302,9 @@ const renderRutaDelCampeon = async (container) => {
       }
       if (miSeleccion !== seleccionActual) return;
       if (!Array.isArray(stadiums)) stadiums = [];
+      // Solo se cachea en éxito: si falla, stadiumsEnMemoria queda como estaba (null o el
+      // último dato válido) para que el próximo intento —esta vista u otra— vuelva a pedirlo.
+      stadiumsEnMemoria = stadiums;
 
       const itinerarioConEstadios = crossStadiumsIntoMatches(matches, stadiums);
       markStadiumsResolvedForCards(itinerarySlot, itinerarioConEstadios.matches, itinerarioConEstadios.citiesVisitedCount);
